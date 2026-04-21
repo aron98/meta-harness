@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "packageManager": "pnpm@10.6.0",
   "scripts": {
-    "build": "corepack pnpm -r run build",
+    "build": "pnpm -r run build",
     "test": "vitest run",
-    "typecheck": "corepack pnpm -r run typecheck",
-    "lint": "corepack pnpm run typecheck"
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "pnpm run typecheck"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",

@@ -11,13 +11,11 @@ Initial TypeScript pnpm workspace scaffold for the OpenCode meta-harness project
 
 ## Commands
 
-- `corepack pnpm install` - install workspace dependencies
-- `corepack pnpm build` - build all packages and apps with tsup
-- `corepack pnpm test` - run Vitest across the workspace
-- `corepack pnpm typecheck` - run TypeScript typechecks across the workspace
-- `corepack pnpm lint` - currently aliases typecheck to keep the scaffold lean
-
-If `pnpm` is already available on your machine, the same commands also work without the `corepack` prefix.
+- `pnpm install` - install workspace dependencies
+- `pnpm build` - build all packages and apps with tsup
+- `pnpm test` - run Vitest across the workspace
+- `pnpm typecheck` - run TypeScript typechecks across the workspace
+- `pnpm lint` - currently aliases typecheck to keep the scaffold lean
 
 ## Notes
 

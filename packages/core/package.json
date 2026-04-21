@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --dts --format esm,cjs --clean",
-    "test": "corepack pnpm --dir ../.. exec vitest run packages/core/test",
+    "test": "pnpm --dir ../.. exec vitest run packages/core/test",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

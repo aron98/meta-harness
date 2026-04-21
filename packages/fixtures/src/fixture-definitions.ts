@@ -37,10 +37,10 @@ export const fixtureDefinitions: FixtureCatalog = freezeDeep([
     },
     evidence: {
       files: ['package.json', 'src/index.ts'],
-      commands: ['corepack pnpm test']
+      commands: ['pnpm test']
     },
     expectations: {
-      mustPass: ['corepack pnpm test'],
+      mustPass: ['pnpm test'],
       notes: ['Do not change code']
     },
     tags: ['explore', 'repo']
@@ -56,10 +56,10 @@ export const fixtureDefinitions: FixtureCatalog = freezeDeep([
     },
     evidence: {
       files: ['package.json'],
-      commands: ['corepack pnpm build']
+      commands: ['pnpm build']
     },
     expectations: {
-      mustPass: ['corepack pnpm build'],
+      mustPass: ['pnpm build'],
       notes: ['Capture exit code 0']
     },
     tags: ['verify', 'build']
