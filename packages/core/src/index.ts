@@ -8,6 +8,8 @@ export {
 
 export { canonicalFixtureSchema, type CanonicalFixture } from './canonical-fixture-schema';
 export { normalizeFixture } from './normalize-fixture';
+export { canonicalFixtureJsonSchema, fixtureAuthoringJsonSchema } from './schema-documents';
+export { renderFixtureSummary } from './render-fixture-summary';
 
 export const CORE_PACKAGE_NAME = '@meta-harness/core';
 
