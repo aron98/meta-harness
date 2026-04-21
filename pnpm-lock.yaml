@@ -26,6 +26,9 @@ importers:
       '@meta-harness/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@meta-harness/fixtures':
+        specifier: workspace:*
+        version: link:../../packages/fixtures
 
   packages/core:
     dependencies:

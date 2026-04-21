@@ -12,10 +12,11 @@
   ],
   "scripts": {
     "build": "tsup --config tsup.config.ts",
-    "test": "vitest run apps/cli/test",
+    "test": "pnpm --dir ../.. exec vitest run apps/cli/test",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@meta-harness/core": "workspace:*"
+    "@meta-harness/core": "workspace:*",
+    "@meta-harness/fixtures": "workspace:*"
   }
 }
