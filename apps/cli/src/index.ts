@@ -3,9 +3,17 @@ import { pathToFileURL } from 'node:url';
 import { CORE_PACKAGE_NAME } from '@meta-harness/core';
 
 import { buildFixtureArtifacts } from './build-fixture-artifacts';
+import { runLogArtifactCommand } from './log-artifact';
+import { runPrepareSessionCommand } from './prepare-session';
+import { runPromoteMemoryCommand } from './promote-memory';
+import { runQueryHistoryCommand } from './query-history';
 
 type Output = Pick<typeof console, 'log'>;
 type BuildFixtureArtifacts = typeof buildFixtureArtifacts;
+type LogArtifact = typeof runLogArtifactCommand;
+type PromoteMemory = typeof runPromoteMemoryCommand;
+type QueryHistory = typeof runQueryHistoryCommand;
+type PrepareSession = typeof runPrepareSessionCommand;
 
 export type RunResult =
   | { success: true; exitCode: 0; output: string }
@@ -17,6 +25,10 @@ export function renderHelp() {
     `Shared runtime package: ${CORE_PACKAGE_NAME}`,
     'Available commands:',
     '  build-fixture-artifacts  Write generated fixture artifacts to docs/generated',
+    '  log-artifact             Validate and store an artifact record',
+    '  promote-memory          Validate and store a memory record',
+    '  query-history           Rank stored memory and artifact history',
+    '  prepare-session         Build a session packet from stored history',
     '',
     'Available workspace commands:',
     '  pnpm test',
@@ -31,11 +43,19 @@ export async function run(
   options: {
     error?: typeof console.error;
     buildFixtureArtifacts?: BuildFixtureArtifacts;
+    logArtifact?: LogArtifact;
+    promoteMemory?: PromoteMemory;
+    queryHistory?: QueryHistory;
+    prepareSession?: PrepareSession;
   } = {}
 ): Promise<RunResult> {
   const help = renderHelp();
   const stderr = options.error ?? console.error;
   const buildArtifacts = options.buildFixtureArtifacts ?? buildFixtureArtifacts;
+  const logArtifact = options.logArtifact ?? runLogArtifactCommand;
+  const promoteMemory = options.promoteMemory ?? runPromoteMemoryCommand;
+  const queryHistory = options.queryHistory ?? runQueryHistoryCommand;
+  const prepareSession = options.prepareSession ?? runPrepareSessionCommand;
 
   if (args.includes('--help') || args.length === 0) {
     stdout.log(help);
@@ -59,6 +79,22 @@ export async function run(
       stderr(error);
       return { success: false, exitCode: 1, output: error, error };
     }
+  }
+
+  if (args[0] === 'log-artifact') {
+    return logArtifact(args.slice(1), stdout, options);
+  }
+
+  if (args[0] === 'promote-memory') {
+    return promoteMemory(args.slice(1), stdout, options);
+  }
+
+  if (args[0] === 'query-history') {
+    return queryHistory(args.slice(1), stdout, options);
+  }
+
+  if (args[0] === 'prepare-session') {
+    return prepareSession(args.slice(1), stdout, options);
   }
 
   const error = `Unknown command: ${args[0]}`;
