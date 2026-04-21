@@ -1,13 +1,27 @@
 import { z } from 'zod';
 
+export const fixtureIdSchema = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+export const fixtureRouteSchema = z.enum([
+  'explain',
+  'explore',
+  'plan',
+  'implement',
+  'verify',
+  'ask',
+  'challenge'
+]);
+export const repoMaturitySchema = z.enum(['new', 'active', 'legacy']);
+
+const requiredTextSchema = z.string().trim().min(1);
+
 export const fixtureAuthoringSchema = z.object({
-  id: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
-  title: z.string().min(1),
-  route: z.enum(['explain', 'explore', 'plan', 'implement', 'verify', 'ask', 'challenge']),
-  prompt: z.string().min(1),
+  id: fixtureIdSchema,
+  title: requiredTextSchema,
+  route: fixtureRouteSchema,
+  prompt: requiredTextSchema,
   repo: z.object({
-    name: z.string().min(1),
-    maturity: z.enum(['new', 'active', 'legacy'])
+    name: requiredTextSchema,
+    maturity: repoMaturitySchema
   }),
   evidence: z
     .object({

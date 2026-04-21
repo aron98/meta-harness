@@ -6,6 +6,9 @@ export {
   type FixtureAuthoringRecord
 } from './fixture-authoring-schema';
 
+export { canonicalFixtureSchema, type CanonicalFixture } from './canonical-fixture-schema';
+export { normalizeFixture } from './normalize-fixture';
+
 export const CORE_PACKAGE_NAME = '@meta-harness/core';
 
 const harnessMetadataSchema = z.object({

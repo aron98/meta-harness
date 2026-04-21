@@ -61,4 +61,27 @@ describe('parseFixtureAuthoringSchema', () => {
       })
     ).toThrow();
   });
+
+  it('rejects whitespace-only required strings', () => {
+    expect(() =>
+      parseFixtureAuthoringSchema({
+        ...validFixture,
+        title: '   '
+      })
+    ).toThrow();
+
+    expect(() =>
+      parseFixtureAuthoringSchema({
+        ...validFixture,
+        prompt: '   '
+      })
+    ).toThrow();
+
+    expect(() =>
+      parseFixtureAuthoringSchema({
+        ...validFixture,
+        repo: { ...validFixture.repo, name: '   ' }
+      })
+    ).toThrow();
+  });
 });
