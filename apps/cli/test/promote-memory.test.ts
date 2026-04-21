@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -61,8 +61,36 @@ describe('runPromoteMemoryCommand', () => {
       throw new Error('expected missing arguments to fail');
     }
     expect(result.exitCode).toBe(1);
-    expect(result.error).toContain('--data-root');
-    expect(result.error).toContain('--input');
+    expect(result.error).toBe('error: promote-memory failed: missing required --data-root and one of --input or --input-file');
     expect(error).toHaveBeenCalledWith(result.error);
+  });
+
+  it('accepts --input-file and emits machine-readable output with --json', async () => {
+    const dataRoot = await mkdtemp(join(tmpdir(), 'meta-harness-cli-promote-memory-'));
+    const inputFile = join(dataRoot, 'memory.json');
+    const log = vi.fn();
+
+    tempDirectories.push(dataRoot);
+
+    await writeFile(inputFile, `${JSON.stringify(memoryRecord, null, 2)}\n`);
+
+    const result = await runPromoteMemoryCommand(
+      ['--data-root', dataRoot, '--input-file', inputFile, '--json'],
+      { log },
+      { error: vi.fn() }
+    );
+
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      throw new Error(`expected success, received ${result.error}`);
+    }
+    expect(result.output).toBe(
+      JSON.stringify({
+        memoryId: 'memory-001',
+        filePath: join(dataRoot, 'data/memory/repo-local/meta-harness/memory-001.json'),
+        memory: memoryRecord
+      })
+    );
+    expect(log).toHaveBeenCalledWith(result.output);
   });
 });

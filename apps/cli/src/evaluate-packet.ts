@@ -7,6 +7,7 @@ import {
   type MemoryRecord
 } from '@meta-harness/core';
 
+import { emitOutput, formatCommandError, getOption, hasFlag, hasOptionValue, renderJsonOutput } from './command-io';
 import { listArtifactRecordsFromStore, listMemoryRecordsFromStore } from './query-history';
 
 type Output = Pick<typeof console, 'log'>;
@@ -28,16 +29,6 @@ type EvaluatePacketFailure = {
 
 export type EvaluatePacketResult = EvaluatePacketSuccess | EvaluatePacketFailure;
 
-function getRequiredOption(args: readonly string[], flag: string): string | undefined {
-  const index = args.indexOf(flag);
-
-  if (index === -1) {
-    return undefined;
-  }
-
-  return args[index + 1];
-}
-
 export async function runEvaluatePacketCommand(
   args: readonly string[],
   stdout: Output = console,
@@ -51,14 +42,16 @@ export async function runEvaluatePacketCommand(
   } = {}
 ): Promise<EvaluatePacketResult> {
   const stderr = options.error ?? console.error;
-  const dataRoot = getRequiredOption(args, '--data-root');
+  const dataRoot = getOption(args, '--data-root');
 
-  if (dataRoot === undefined || dataRoot.startsWith('--')) {
-    const error = 'evaluate-packet failed: missing required --data-root';
+  if (!hasOptionValue(args, '--data-root')) {
+    const error = formatCommandError('evaluate-packet', 'missing required --data-root');
 
     stderr(error);
     return { success: false, exitCode: 1, output: error, error };
   }
+
+  const resolvedDataRoot = dataRoot as string;
 
   const listArtifactRecords = options.listArtifactRecords ?? listArtifactRecordsFromStore;
   const listMemoryRecords = options.listMemoryRecords ?? listMemoryRecordsFromStore;
@@ -66,7 +59,10 @@ export async function runEvaluatePacketCommand(
   const now = options.now ?? (() => new Date().toISOString());
 
   try {
-    const [loadedMemories, loadedArtifacts] = await Promise.all([listMemoryRecords(dataRoot), listArtifactRecords(dataRoot)]);
+    const [loadedMemories, loadedArtifacts] = await Promise.all([
+      listMemoryRecords(resolvedDataRoot),
+      listArtifactRecords(resolvedDataRoot)
+    ]);
     const memoryRecords = Array.isArray(loadedMemories) ? loadedMemories : loadedMemories.records;
     const artifactRecords = Array.isArray(loadedArtifacts) ? loadedArtifacts : loadedArtifacts.records;
     const warnings = [
@@ -79,14 +75,18 @@ export async function runEvaluatePacketCommand(
       artifactRecords,
       referenceTime: now()
     });
-    const output = JSON.stringify(evaluation);
+    const output = renderJsonOutput(args, { evaluation, warnings }, () => JSON.stringify(evaluation));
 
-    for (const warning of warnings) {
-      stdout.log(warning);
+    if (hasFlag(args, '--json')) {
+      emitOutput(stdout, output);
+    } else {
+      for (const warning of warnings) {
+        stdout.log(warning);
+      }
+
+      stdout.log(`Evaluated ${evaluation.summary.benchmarkCount} benchmark packet(s)`);
+      stdout.log(JSON.stringify(evaluation));
     }
-
-    stdout.log(`Evaluated ${evaluation.summary.benchmarkCount} benchmark packet(s)`);
-    stdout.log(output);
 
     return {
       success: true,
@@ -97,7 +97,7 @@ export async function runEvaluatePacketCommand(
     };
   } catch (caughtError) {
     const message = caughtError instanceof Error ? caughtError.message : String(caughtError);
-    const error = `evaluate-packet failed: ${message}`;
+    const error = formatCommandError('evaluate-packet', message);
 
     stderr(error);
     return { success: false, exitCode: 1, output: error, error };

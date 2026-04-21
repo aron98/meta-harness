@@ -182,7 +182,7 @@ describe('runEvaluatePacketCommand', () => {
     if (result.success) {
       throw new Error('expected missing input to fail');
     }
-    expect(result.error).toContain('--data-root');
+    expect(result.error).toBe('error: evaluate-packet failed: missing required --data-root');
     expect(error).toHaveBeenCalledWith(result.error);
   });
 
@@ -220,6 +220,40 @@ describe('runEvaluatePacketCommand', () => {
     expect(result.error).toContain('evaluate-packet failed');
     expect(error).toHaveBeenCalledWith(result.error);
     expect(log).not.toHaveBeenCalledWith(expect.stringContaining('Evaluated '));
+  });
+
+  it('emits JSON results with --json and preserves warnings in the payload', async () => {
+    const log = vi.fn();
+    const evaluateBenchmarks = vi.fn().mockReturnValue(createEvaluationResult());
+
+    const result = await runEvaluatePacketCommand(
+      ['--data-root', '/tmp/meta-harness', '--json'],
+      { log },
+      {
+        error: vi.fn(),
+        benchmarkFixtures: benchmarks,
+        evaluateBenchmarks,
+        listMemoryRecords: vi.fn().mockResolvedValue({
+          records: memories,
+          warnings: ['warning: skipped memory record ignored.json']
+        }),
+        listArtifactRecords: vi.fn().mockResolvedValue({
+          records: artifacts,
+          warnings: ['warning: skipped artifact record ignored.json']
+        })
+      }
+    );
+
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      throw new Error(`expected success, received ${result.error}`);
+    }
+    expect(JSON.parse(result.output)).toEqual({
+      evaluation: createEvaluationResult(),
+      warnings: ['warning: skipped memory record ignored.json', 'warning: skipped artifact record ignored.json']
+    });
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log).toHaveBeenCalledWith(result.output);
   });
 });
 

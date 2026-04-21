@@ -1,6 +1,15 @@
-import { describe, expect, it, vi } from 'vitest';
+import { execFile as execFileCallback } from 'node:child_process';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { promisify } from 'node:util';
+
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { renderHelp, run } from '../src/index';
+
+const execFile = promisify(execFileCallback);
+const tempDirectories: string[] = [];
 
 describe('renderHelp', () => {
   it('describes the scaffolded commands', () => {
@@ -15,6 +24,10 @@ describe('renderHelp', () => {
 });
 
 describe('run', () => {
+  afterEach(async () => {
+    await Promise.all(tempDirectories.splice(0).map(async (directory) => rm(directory, { recursive: true, force: true })));
+  });
+
   it('prints help for the help path', async () => {
     const log = vi.fn();
 
@@ -38,8 +51,8 @@ describe('run', () => {
     if (result.success) {
       throw new Error('expected unknown command to fail');
     }
-    expect(result.error).toContain('Unknown command: wat');
-    expect(error).toHaveBeenCalledWith('Unknown command: wat');
+    expect(result.error).toContain('error: cli failed: unknown command wat');
+    expect(error).toHaveBeenCalledWith('error: cli failed: unknown command wat');
     expect(log).toHaveBeenCalledWith(renderHelp());
   });
 
@@ -71,11 +84,64 @@ describe('run', () => {
     if (result.success) {
       throw new Error('expected build-fixture-artifacts rejection to fail');
     }
-    expect(result.error).toContain('build-fixture-artifacts failed');
+    expect(result.error).toContain('error: build-fixture-artifacts failed');
     expect(result.error).toContain('disk full');
-    expect(error).toHaveBeenCalledWith(expect.stringContaining('build-fixture-artifacts failed'));
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('error: build-fixture-artifacts failed'));
     expect(log).not.toHaveBeenCalledWith(renderHelp());
   });
+
+  it('starts the built CLI help path without sibling workspace dist outputs', async () => {
+    await execFile('pnpm', ['--filter', '@meta-harness/cli', 'build'], {
+      cwd: '/home/openclaw/.openclaw/workspace/projects/meta-harness/code/.worktrees/ux-hardening'
+    });
+
+    const result = await execFile('node', ['apps/cli/dist/index.js', '--help'], {
+      cwd: '/home/openclaw/.openclaw/workspace/projects/meta-harness/code/.worktrees/ux-hardening'
+    });
+
+    expect(result.stdout).toContain('meta-harness CLI scaffold');
+    expect(result.stdout).toContain('Available commands:');
+  }, 120000);
+
+  it('runs a built log-artifact command after the CLI build', async () => {
+    const dataRoot = await mkdtemp(join(tmpdir(), 'meta-harness-cli-built-command-'));
+    const inputFile = join(dataRoot, 'artifact.json');
+
+    tempDirectories.push(dataRoot);
+
+    await writeFile(
+      inputFile,
+      JSON.stringify({
+        id: 'artifact-built-smoke',
+        taskType: 'fix',
+        repoId: 'meta-harness',
+        promptSummary: 'Built CLI smoke test artifact.',
+        filesInspected: ['apps/cli/src/index.ts'],
+        filesChanged: ['apps/cli/src/index.ts'],
+        commands: ['pnpm --filter @meta-harness/cli build'],
+        diagnostics: ['built smoke check'],
+        verification: ['node apps/cli/dist/index.js log-artifact --json'],
+        outcome: 'success',
+        tags: ['cli', 'smoke'],
+        createdAt: '2026-04-21T12:00:00.000Z'
+      })
+    );
+
+    await execFile('pnpm', ['--filter', '@meta-harness/cli', 'build'], {
+      cwd: '/home/openclaw/.openclaw/workspace/projects/meta-harness/code/.worktrees/ux-hardening'
+    });
+
+    const result = await execFile(
+      'node',
+      ['apps/cli/dist/index.js', 'log-artifact', '--data-root', dataRoot, '--input-file', inputFile, '--json'],
+      {
+        cwd: '/home/openclaw/.openclaw/workspace/projects/meta-harness/code/.worktrees/ux-hardening'
+      }
+    );
+
+    expect(result.stdout).toContain('artifact-built-smoke');
+    expect(result.stdout).toContain('data/artifacts/meta-harness/artifact-built-smoke.json');
+  }, 120000);
 
   it('dispatches log-artifact via injected command handler', async () => {
     const log = vi.fn();

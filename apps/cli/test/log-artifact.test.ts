@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -66,8 +66,36 @@ describe('runLogArtifactCommand', () => {
       throw new Error('expected missing arguments to fail');
     }
     expect(result.exitCode).toBe(1);
-    expect(result.error).toContain('--data-root');
-    expect(result.error).toContain('--input');
+    expect(result.error).toBe('error: log-artifact failed: missing required --data-root and one of --input or --input-file');
     expect(error).toHaveBeenCalledWith(result.error);
+  });
+
+  it('accepts --input-file and emits machine-readable output with --json', async () => {
+    const dataRoot = await mkdtemp(join(tmpdir(), 'meta-harness-cli-log-artifact-'));
+    const inputFile = join(dataRoot, 'artifact.json');
+    const log = vi.fn();
+
+    tempDirectories.push(dataRoot);
+
+    await writeFile(inputFile, `${JSON.stringify(artifactRecord, null, 2)}\n`);
+
+    const result = await runLogArtifactCommand(
+      ['--data-root', dataRoot, '--input-file', inputFile, '--json'],
+      { log },
+      { error: vi.fn() }
+    );
+
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      throw new Error(`expected success, received ${result.error}`);
+    }
+    expect(result.output).toBe(
+      JSON.stringify({
+        recordId: 'artifact-001',
+        filePath: join(dataRoot, 'data/artifacts/meta-harness/artifact-001.json'),
+        record: artifactRecord
+      })
+    );
+    expect(log).toHaveBeenCalledWith(result.output);
   });
 });
