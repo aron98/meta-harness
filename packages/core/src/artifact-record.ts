@@ -44,6 +44,8 @@ export const artifactRecordSchema = z
   });
 
 export type ArtifactRecord = z.infer<typeof artifactRecordSchema>;
+export type TaskType = z.infer<typeof taskTypeSchema>;
+export type ArtifactOutcome = z.infer<typeof artifactOutcomeSchema>;
 
 export function parseArtifactRecord(input: unknown): ArtifactRecord {
   return artifactRecordSchema.parse(input);

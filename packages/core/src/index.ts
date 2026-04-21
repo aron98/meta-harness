@@ -1,8 +1,11 @@
 import { z } from 'zod';
 
 export {
+  fixtureIdSchema,
   fixtureAuthoringSchema,
+  fixtureRouteSchema,
   parseFixtureAuthoringSchema,
+  repoMaturitySchema,
   type FixtureAuthoringRecord
 } from './fixture-authoring-schema';
 
@@ -11,7 +14,9 @@ export {
   artifactRecordSchema,
   parseArtifactRecord,
   taskTypeSchema,
-  type ArtifactRecord
+  type ArtifactOutcome,
+  type ArtifactRecord,
+  type TaskType
 } from './artifact-record';
 export { loadArtifactRecord, writeArtifactRecord } from './artifact-store';
 export { canonicalFixtureSchema, type CanonicalFixture } from './canonical-fixture-schema';
@@ -29,6 +34,12 @@ export { normalizeFixture } from './normalize-fixture';
 export { canonicalFixtureJsonSchema, fixtureAuthoringJsonSchema } from './schema-documents';
 export { renderFixtureSummary } from './render-fixture-summary';
 export { parseSessionPacket, sessionPacketSchema, type SessionPacket } from './session-packet';
+export { prepareSessionPacket, type PrepareSessionPacketInput } from './prepare-session-packet';
+export { retrievalQuerySchema, parseRetrievalQuery, type RetrievalQuery } from './retrieval-query';
+export { rankArtifacts, rankMemories, type RetrievalReason, type ScoredRetrieval } from './retriever';
+export { classifyTaskType } from './task-classification';
+export { buildVerificationChecklist, type VerificationChecklistInput } from './verification-checklist';
+export { type SessionPacketRoute } from './session-packet';
 export { assertValidPathSegment, getArtifactRecordPath, getMemoryRecordPath, type MemoryRecordLocator } from './storage-paths';
 export { writeJsonFile } from './write-json-file';
 
