@@ -1,3 +1,5 @@
+import { fixtureRouteSchema, repoMaturitySchema } from './fixture-authoring-schema';
+
 const jsonSchemaDialect = 'https://json-schema.org/draft/2020-12/schema';
 
 const requiredTextSchema = {
@@ -7,8 +9,8 @@ const requiredTextSchema = {
   description: 'Approximation of the runtime trim().min(1) check: requires at least one non-whitespace character.'
 } as const;
 
-const fixtureRouteEnum = ['explain', 'explore', 'plan', 'implement', 'verify', 'ask', 'challenge'] as const;
-const repoMaturityEnum = ['new', 'active', 'legacy'] as const;
+const fixtureRouteEnum = [...fixtureRouteSchema.options];
+const repoMaturityEnum = [...repoMaturitySchema.options];
 
 export const fixtureAuthoringJsonSchema = {
   $schema: jsonSchemaDialect,

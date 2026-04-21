@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { fixtureRouteSchema, repoMaturitySchema } from '../src/fixture-authoring-schema';
 import { canonicalFixtureJsonSchema, fixtureAuthoringJsonSchema } from '../src/index';
 
 function hasOwnProperty(value: object, key: string): boolean {
@@ -132,5 +133,17 @@ describe('schema documents', () => {
       minLength: 1,
       pattern: '.*\\S.*'
     });
+  });
+
+  it('copies runtime enum values into JSON schema enums', () => {
+    expect(fixtureAuthoringJsonSchema.properties.route.enum).toEqual(fixtureRouteSchema.options);
+    expect(canonicalFixtureJsonSchema.properties.route.enum).toEqual(fixtureRouteSchema.options);
+    expect(fixtureAuthoringJsonSchema.properties.repo.properties.maturity.enum).toEqual(repoMaturitySchema.options);
+    expect(canonicalFixtureJsonSchema.properties.repo.properties.maturity.enum).toEqual(repoMaturitySchema.options);
+
+    expect(fixtureAuthoringJsonSchema.properties.route.enum).not.toBe(fixtureRouteSchema.options);
+    expect(canonicalFixtureJsonSchema.properties.route.enum).not.toBe(fixtureRouteSchema.options);
+    expect(fixtureAuthoringJsonSchema.properties.repo.properties.maturity.enum).not.toBe(repoMaturitySchema.options);
+    expect(canonicalFixtureJsonSchema.properties.repo.properties.maturity.enum).not.toBe(repoMaturitySchema.options);
   });
 });
