@@ -1,7 +1,8 @@
 import { execFile as execFileCallback } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { extname, join } from 'node:path';
+import { dirname, extname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -10,7 +11,7 @@ import { renderHelp, run } from '../src/index';
 
 const execFile = promisify(execFileCallback);
 const tempDirectories: string[] = [];
-const repoRoot = '/home/openclaw/.openclaw/workspace/projects/meta-harness/code/.worktrees/ux-hardening';
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
 async function runPnpm(args: readonly string[]) {
   const pnpmExecPath = process.env.npm_execpath;
