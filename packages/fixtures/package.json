@@ -17,7 +17,11 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --dts --format esm,cjs --clean",
-    "test": "vitest run packages/fixtures/test",
+    "test": "vitest run && pnpm run test:package",
+    "test:package": "pnpm run build && node --input-type=module -e \"const pkg = await import('@meta-harness/fixtures'); if (!Array.isArray(pkg.fixtureDefinitions)) throw new Error('fixtureDefinitions export missing'); if (pkg.fixtureDefinitions.length !== 2) throw new Error('fixtureDefinitions length mismatch'); if (pkg.fixtureDefinitions[0]?.id !== 'repo-scan-basic' || pkg.fixtureDefinitions[1]?.id !== 'verify-node-build') throw new Error('fixtureDefinitions ids mismatch');\"",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@meta-harness/core": "workspace:*"
   }
 }
