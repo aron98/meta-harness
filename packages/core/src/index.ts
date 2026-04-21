@@ -35,6 +35,14 @@ export { canonicalFixtureJsonSchema, fixtureAuthoringJsonSchema } from './schema
 export { renderFixtureSummary } from './render-fixture-summary';
 export { parseSessionPacket, sessionPacketSchema, type SessionPacket } from './session-packet';
 export { prepareSessionPacket, type PrepareSessionPacketInput } from './prepare-session-packet';
+export {
+  evaluatePacketBenchmarks,
+  type EvaluatePacketBenchmark,
+  type EvaluatePacketBenchmarkResult,
+  type EvaluatePacketBenchmarksInput,
+  type EvaluatePacketBenchmarksResult,
+  type EvaluatePacketMetrics
+} from './evaluate-packet';
 export { retrievalQuerySchema, parseRetrievalQuery, type RetrievalQuery } from './retrieval-query';
 export { rankArtifacts, rankMemories, type RetrievalReason, type ScoredRetrieval } from './retriever';
 export { classifyTaskType } from './task-classification';
