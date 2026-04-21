@@ -33,7 +33,11 @@ importers:
         specifier: ^3.24.4
         version: 3.25.76
 
-  packages/fixtures: {}
+  packages/fixtures:
+    dependencies:
+      '@meta-harness/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/plugin: {}
 
