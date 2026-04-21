@@ -1,5 +1,7 @@
 import { parseMemoryRecord, writeMemoryRecord, type MemoryRecord } from '@meta-harness/core';
 
+import { emitOutput, formatCommandError, getOption, hasOptionValue, readInputValue, renderJsonOutput } from './command-io';
+
 type Output = Pick<typeof console, 'log'>;
 
 type PromoteMemorySuccess = {
@@ -20,24 +22,6 @@ type PromoteMemoryFailure = {
 
 export type PromoteMemoryResult = PromoteMemorySuccess | PromoteMemoryFailure;
 
-function getRequiredOption(args: readonly string[], flag: string): string | undefined {
-  const index = args.indexOf(flag);
-
-  if (index === -1) {
-    return undefined;
-  }
-
-  return args[index + 1];
-}
-
-function getMissingRequiredFlags(args: readonly string[]): string[] {
-  return ['--data-root', '--input'].filter((flag) => {
-    const value = getRequiredOption(args, flag);
-
-    return value === undefined || value.startsWith('--');
-  });
-}
-
 export async function runPromoteMemoryCommand(
   args: readonly string[],
   stdout: Output = console,
@@ -48,26 +32,29 @@ export async function runPromoteMemoryCommand(
   } = {}
 ): Promise<PromoteMemoryResult> {
   const stderr = options.error ?? console.error;
-  const missingFlags = getMissingRequiredFlags(args);
 
-  if (missingFlags.length > 0) {
-    const error = `promote-memory failed: missing required ${missingFlags.join(' and ')}`;
+  if (!hasOptionValue(args, '--data-root') || (!hasOptionValue(args, '--input') && !hasOptionValue(args, '--input-file'))) {
+    const error = formatCommandError('promote-memory', 'missing required --data-root and one of --input or --input-file');
 
     stderr(error);
     return { success: false, exitCode: 1, output: error, error };
   }
 
-  const dataRoot = getRequiredOption(args, '--data-root') as string;
-  const input = getRequiredOption(args, '--input') as string;
+  const dataRoot = getOption(args, '--data-root') as string;
   const parseMemory = options.parseMemory ?? parseMemoryRecord;
   const writeMemory = options.writeMemory ?? writeMemoryRecord;
 
   try {
+    const input = await readInputValue(args);
     const memory = parseMemory(JSON.parse(input));
     const filePath = await writeMemory(dataRoot, memory);
-    const output = `Promoted memory ${memory.id} (${memory.scope})`;
+    const output = renderJsonOutput(
+      args,
+      { memoryId: memory.id, filePath, memory },
+      () => `Promoted memory ${memory.id} (${memory.scope})`
+    );
 
-    stdout.log(output);
+    emitOutput(stdout, output);
 
     return {
       success: true,
@@ -79,7 +66,7 @@ export async function runPromoteMemoryCommand(
     };
   } catch (caughtError) {
     const message = caughtError instanceof Error ? caughtError.message : String(caughtError);
-    const error = `promote-memory failed: ${message}`;
+    const error = formatCommandError('promote-memory', message);
 
     stderr(error);
     return { success: false, exitCode: 1, output: error, error };

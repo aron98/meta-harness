@@ -118,7 +118,7 @@ describe('runQueryHistoryCommand', () => {
       throw new Error('expected invalid input to fail');
     }
     expect(result.exitCode).toBe(1);
-    expect(result.error).toContain('query-history failed');
+    expect(result.error).toContain('error: query-history failed');
     expect(error).toHaveBeenCalledWith(result.error);
   });
 
@@ -155,11 +155,11 @@ describe('runQueryHistoryCommand', () => {
     expect(result.memories.map((entry) => entry.record.id)).toEqual(['memory-top']);
     expect(result.artifacts.map((entry) => entry.record.id)).toEqual(['artifact-top']);
     expect(result.warnings).toEqual([
-      'Warning: skipped memory record bad-memory.json',
-      'Warning: skipped artifact record bad-artifact.json'
+      'warning: skipped memory record bad-memory.json',
+      'warning: skipped artifact record bad-artifact.json'
     ]);
-    expect(log).toHaveBeenCalledWith('Warning: skipped memory record bad-memory.json');
-    expect(log).toHaveBeenCalledWith('Warning: skipped artifact record bad-artifact.json');
+    expect(log).toHaveBeenCalledWith('warning: skipped memory record bad-memory.json');
+    expect(log).toHaveBeenCalledWith('warning: skipped artifact record bad-artifact.json');
     expect(error).not.toHaveBeenCalled();
   });
 
@@ -199,5 +199,46 @@ describe('runQueryHistoryCommand', () => {
     }
     expect(result.error).toContain('permission denied');
     expect(error).toHaveBeenCalledWith(result.error);
+  });
+
+  it('accepts --input-file and emits JSON results with --json', async () => {
+    const dataRoot = await mkdtemp(join(tmpdir(), 'meta-harness-cli-query-history-'));
+    const inputFile = join(dataRoot, 'query.json');
+    const log = vi.fn();
+    const error = vi.fn();
+
+    tempDirectories.push(dataRoot);
+
+    await writeFile(inputFile, `${JSON.stringify({ ...query, limit: 1 }, null, 2)}\n`);
+
+    const result = await runQueryHistoryCommand(
+      ['--data-root', dataRoot, '--input-file', inputFile, '--json'],
+      { log },
+      {
+        error,
+        listMemoryRecords: vi.fn().mockResolvedValue({
+          records: memories,
+          warnings: ['warning: skipped memory record ignored.json']
+        }),
+        listArtifactRecords: vi.fn().mockResolvedValue({
+          records: artifacts,
+          warnings: ['warning: skipped artifact record ignored.json']
+        })
+      }
+    );
+
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      throw new Error(`expected success, received ${result.error}`);
+    }
+    expect(JSON.parse(result.output)).toEqual({
+      query,
+      memories: result.memories,
+      artifacts: result.artifacts,
+      warnings: ['warning: skipped memory record ignored.json', 'warning: skipped artifact record ignored.json']
+    });
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log).toHaveBeenCalledWith(result.output);
+    expect(error).not.toHaveBeenCalled();
   });
 });

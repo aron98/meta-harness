@@ -92,8 +92,7 @@ describe('runPrepareSessionCommand', () => {
       throw new Error('expected missing input to fail');
     }
     expect(result.exitCode).toBe(1);
-    expect(result.error).toContain('--data-root');
-    expect(result.error).toContain('--input');
+    expect(result.error).toBe('error: prepare-session failed: missing required --data-root and one of --input or --input-file');
     expect(error).toHaveBeenCalledWith(result.error);
   });
 
@@ -143,11 +142,62 @@ describe('runPrepareSessionCommand', () => {
     expect(result.packet.selectedMemoryIds).toEqual(['memory-build']);
     expect(result.packet.selectedArtifactIds).toEqual(['artifact-build']);
     expect(result.warnings).toEqual([
-      'Warning: skipped memory record bad-memory.json',
-      'Warning: skipped artifact record bad-artifact.json'
+      'warning: skipped memory record bad-memory.json',
+      'warning: skipped artifact record bad-artifact.json'
     ]);
-    expect(log).toHaveBeenCalledWith('Warning: skipped memory record bad-memory.json');
-    expect(log).toHaveBeenCalledWith('Warning: skipped artifact record bad-artifact.json');
+    expect(log).toHaveBeenCalledWith('warning: skipped memory record bad-memory.json');
+    expect(log).toHaveBeenCalledWith('warning: skipped artifact record bad-artifact.json');
     expect(error).not.toHaveBeenCalled();
+  });
+
+  it('accepts --input-file and emits JSON results with --json', async () => {
+    const dataRoot = await mkdtemp(join(tmpdir(), 'meta-harness-cli-prepare-session-'));
+    const inputFile = join(dataRoot, 'packet-input.json');
+    const log = vi.fn();
+
+    tempDirectories.push(dataRoot);
+
+    await writeFile(
+      inputFile,
+      `${JSON.stringify(
+        {
+          packetId: 'packet-003',
+          repoId: 'repo-a',
+          prompt: 'Implement a fix for the broken TypeScript build and verify it.',
+          maxMemories: 1,
+          maxArtifacts: 1,
+          referenceTime: '2026-04-21T12:00:00.000Z'
+        },
+        null,
+        2
+      )}\n`
+    );
+
+    const result = await runPrepareSessionCommand(
+      ['--data-root', dataRoot, '--input-file', inputFile, '--json'],
+      { log },
+      {
+        error: vi.fn(),
+        listMemoryRecords: vi.fn().mockResolvedValue({
+          records: memories,
+          warnings: ['warning: skipped memory record ignored.json']
+        }),
+        listArtifactRecords: vi.fn().mockResolvedValue({
+          records: artifacts,
+          warnings: ['warning: skipped artifact record ignored.json']
+        })
+      }
+    );
+
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      throw new Error(`expected success, received ${result.error}`);
+    }
+    expect(JSON.parse(result.output)).toEqual({
+      packet: result.packet,
+      warnings: ['warning: skipped memory record ignored.json', 'warning: skipped artifact record ignored.json']
+    });
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log).toHaveBeenCalledWith(result.output);
   });
 });

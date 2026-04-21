@@ -15,7 +15,13 @@ Then run commands from the repo root with:
 node apps/cli/dist/index.js <command> [...flags]
 ```
 
-For commands that accept `--input`, pass one JSON object as a single shell argument.
+For commands that accept structured input:
+
+- use `--input '<json>'` to pass one JSON object as a single shell argument
+- or use `--input-file /path/to/input.json` to load the same payload from disk
+- add `--json` when you want machine-readable output instead of the default human-readable summary
+
+Warnings and failures use explicit prefixes such as `warning:` and `error: <command> failed: ...`.
 
 ## `build-fixture-artifacts`
 
@@ -43,7 +49,7 @@ Purpose: validate one artifact record and persist it under `data/artifacts/<repo
 Required flags:
 
 - `--data-root <path>`
-- `--input '<json>'`
+- one of `--input '<json>'` or `--input-file <path>`
 
 Sample `--input` JSON:
 
@@ -71,6 +77,20 @@ Rough output shape:
 Logged artifact artifact-release-build-001 (success)
 ```
 
+JSON mode:
+
+```bash
+node apps/cli/dist/index.js log-artifact --data-root ./tmp/store --input-file ./artifact.json --json
+```
+
+```json
+{
+  "recordId": "artifact-release-build-001",
+  "filePath": "./tmp/store/data/artifacts/repo-alpha/artifact-release-build-001.json",
+  "record": {"id": "artifact-release-build-001"}
+}
+```
+
 ## `promote-memory`
 
 Purpose: validate one memory record and persist it under the scope-specific `data/memory/...` path.
@@ -78,7 +98,7 @@ Purpose: validate one memory record and persist it under the scope-specific `dat
 Required flags:
 
 - `--data-root <path>`
-- `--input '<json>'`
+- one of `--input '<json>'` or `--input-file <path>`
 
 Sample `--input` JSON:
 
@@ -103,6 +123,8 @@ Rough output shape:
 Promoted memory memory-release-build-001 (repo-local)
 ```
 
+JSON mode returns `{ memoryId, filePath, memory }`.
+
 ## `query-history`
 
 Purpose: load stored memory and artifact records, rank them for a retrieval query, and print the top IDs.
@@ -110,7 +132,7 @@ Purpose: load stored memory and artifact records, rank them for a retrieval quer
 Required flags:
 
 - `--data-root <path>`
-- `--input '<json>'`
+- one of `--input '<json>'` or `--input-file <path>`
 
 Sample `--input` JSON:
 
@@ -132,7 +154,9 @@ Top memories: memory-release-build-001
 Top artifacts: artifact-release-build-001
 ```
 
-Result object shape in code: `{ query, memories, artifacts, warnings }`.
+Warnings for malformed stored records are printed as `warning: skipped ...` in human-readable mode.
+
+JSON mode returns `{ query, memories, artifacts, warnings }`.
 
 ## `prepare-session`
 
@@ -141,7 +165,7 @@ Purpose: build a session packet from stored history for a new task prompt.
 Required flags:
 
 - `--data-root <path>`
-- `--input '<json>'`
+- one of `--input '<json>'` or `--input-file <path>`
 
 Sample `--input` JSON:
 
@@ -165,7 +189,9 @@ Prepared session packet packet-release-build-001 (verification/verify)
 Selected 1 memories and 1 artifacts
 ```
 
-Result object shape in code: `{ packet, warnings }`, where `packet` includes `id`, `taskType`, `selectedMemoryIds`, `selectedArtifactIds`, `suggestedRoute`, `verificationChecklist`, `rationale`, and `createdAt`.
+Warnings for malformed stored records are printed as `warning: skipped ...` in human-readable mode.
+
+JSON mode returns `{ packet, warnings }`, where `packet` includes `id`, `taskType`, `selectedMemoryIds`, `selectedArtifactIds`, `suggestedRoute`, `verificationChecklist`, `rationale`, and `createdAt`.
 
 ## `evaluate-packet`
 
@@ -181,3 +207,7 @@ Rough output shape:
 Evaluated 5 benchmark packet(s)
 {"benchmarks":[...],"summary":{"benchmarkCount":5,"retrievalOn":{...},"retrievalOff":{...},"comparison":{...}}}
 ```
+
+Warnings for malformed stored records are printed as `warning: skipped ...` in human-readable mode.
+
+JSON mode returns `{ evaluation, warnings }`.

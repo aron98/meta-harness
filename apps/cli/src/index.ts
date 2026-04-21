@@ -1,21 +1,16 @@
 import { pathToFileURL } from 'node:url';
 
-import { CORE_PACKAGE_NAME } from '@meta-harness/core';
-
-import { buildFixtureArtifacts } from './build-fixture-artifacts';
-import { runEvaluatePacketCommand } from './evaluate-packet';
-import { runLogArtifactCommand } from './log-artifact';
-import { runPrepareSessionCommand } from './prepare-session';
-import { runPromoteMemoryCommand } from './promote-memory';
-import { runQueryHistoryCommand } from './query-history';
+import { formatCommandError } from './command-io';
 
 type Output = Pick<typeof console, 'log'>;
-type BuildFixtureArtifacts = typeof buildFixtureArtifacts;
-type EvaluatePacket = typeof runEvaluatePacketCommand;
-type LogArtifact = typeof runLogArtifactCommand;
-type PromoteMemory = typeof runPromoteMemoryCommand;
-type QueryHistory = typeof runQueryHistoryCommand;
-type PrepareSession = typeof runPrepareSessionCommand;
+type BuildFixtureArtifacts = typeof import('./build-fixture-artifacts').buildFixtureArtifacts;
+type EvaluatePacket = typeof import('./evaluate-packet').runEvaluatePacketCommand;
+type LogArtifact = typeof import('./log-artifact').runLogArtifactCommand;
+type PromoteMemory = typeof import('./promote-memory').runPromoteMemoryCommand;
+type QueryHistory = typeof import('./query-history').runQueryHistoryCommand;
+type PrepareSession = typeof import('./prepare-session').runPrepareSessionCommand;
+
+const CORE_PACKAGE_NAME = '@meta-harness/core';
 
 export type RunResult =
   | { success: true; exitCode: 0; output: string }
@@ -55,12 +50,6 @@ export async function run(
 ): Promise<RunResult> {
   const help = renderHelp();
   const stderr = options.error ?? console.error;
-  const buildArtifacts = options.buildFixtureArtifacts ?? buildFixtureArtifacts;
-  const evaluatePacket = options.evaluatePacket ?? runEvaluatePacketCommand;
-  const logArtifact = options.logArtifact ?? runLogArtifactCommand;
-  const promoteMemory = options.promoteMemory ?? runPromoteMemoryCommand;
-  const queryHistory = options.queryHistory ?? runQueryHistoryCommand;
-  const prepareSession = options.prepareSession ?? runPrepareSessionCommand;
 
   if (args.includes('--help') || args.length === 0) {
     stdout.log(help);
@@ -69,6 +58,7 @@ export async function run(
 
   if (args[0] === 'build-fixture-artifacts') {
     try {
+      const buildArtifacts = options.buildFixtureArtifacts ?? (await import('./build-fixture-artifacts')).buildFixtureArtifacts;
       const result = await buildArtifacts();
 
       stdout.log('Wrote files:');
@@ -79,7 +69,7 @@ export async function run(
       return { success: true, exitCode: 0, output: result.writtenFiles.join('\n') };
     } catch (caughtError) {
       const message = caughtError instanceof Error ? caughtError.message : String(caughtError);
-      const error = `build-fixture-artifacts failed: ${message}`;
+      const error = formatCommandError('build-fixture-artifacts', message);
 
       stderr(error);
       return { success: false, exitCode: 1, output: error, error };
@@ -87,26 +77,31 @@ export async function run(
   }
 
   if (args[0] === 'log-artifact') {
+    const logArtifact = options.logArtifact ?? (await import('./log-artifact')).runLogArtifactCommand;
     return logArtifact(args.slice(1), stdout, options);
   }
 
   if (args[0] === 'promote-memory') {
+    const promoteMemory = options.promoteMemory ?? (await import('./promote-memory')).runPromoteMemoryCommand;
     return promoteMemory(args.slice(1), stdout, options);
   }
 
   if (args[0] === 'query-history') {
+    const queryHistory = options.queryHistory ?? (await import('./query-history')).runQueryHistoryCommand;
     return queryHistory(args.slice(1), stdout, options);
   }
 
   if (args[0] === 'prepare-session') {
+    const prepareSession = options.prepareSession ?? (await import('./prepare-session')).runPrepareSessionCommand;
     return prepareSession(args.slice(1), stdout, options);
   }
 
   if (args[0] === 'evaluate-packet') {
+    const evaluatePacket = options.evaluatePacket ?? (await import('./evaluate-packet')).runEvaluatePacketCommand;
     return evaluatePacket(args.slice(1), stdout, options);
   }
 
-  const error = `Unknown command: ${args[0]}`;
+  const error = formatCommandError('cli', `unknown command ${args[0]}`);
   stderr(error);
   stdout.log(help);
   return { success: false, exitCode: 1, output: help, error };

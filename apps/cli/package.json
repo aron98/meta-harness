@@ -11,7 +11,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup --config tsup.config.ts",
+    "build": "pnpm --dir ../.. --filter @meta-harness/core build && pnpm --dir ../.. --filter @meta-harness/fixtures build && tsup --config tsup.config.ts",
     "test": "pnpm --dir ../.. exec vitest run apps/cli/test",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

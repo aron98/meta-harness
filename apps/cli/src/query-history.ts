@@ -13,6 +13,8 @@ import {
   type ScoredRetrieval
 } from '@meta-harness/core';
 
+import { emitOutput, formatCommandError, formatWarning, getOption, hasFlag, hasOptionValue, readInputValue, renderJsonOutput } from './command-io';
+
 type Output = Pick<typeof console, 'log'>;
 
 type LoadedRecords<T> = {
@@ -95,10 +97,10 @@ async function loadRecordsFromFiles<T>(
           throw caughtError;
         }
 
-        return {
-          kind: 'warning' as const,
-          warning: `Warning: skipped ${warningLabel} ${filePath.split('/').at(-1) ?? filePath}`
-        };
+          return {
+            kind: 'warning' as const,
+            warning: formatWarning(`skipped ${warningLabel} ${filePath.split('/').at(-1) ?? filePath}`)
+          };
       }
     })
   );
@@ -139,16 +141,6 @@ export async function listMemoryRecordsFromStore(
   return loadRecordsFromFiles(filePaths, parseMemoryRecord, 'memory record', options);
 }
 
-function getRequiredOption(args: readonly string[], flag: string): string | undefined {
-  const index = args.indexOf(flag);
-
-  if (index === -1) {
-    return undefined;
-  }
-
-  return args[index + 1];
-}
-
 function parseQueryHistoryInput(input: string): { query: RetrievalQuery; limit: number } {
   const parsed = JSON.parse(input) as QueryHistoryInput;
   const query = parseRetrievalQuery(parsed);
@@ -171,24 +163,26 @@ export async function runQueryHistoryCommand(
   } = {}
 ): Promise<QueryHistoryResult> {
   const stderr = options.error ?? console.error;
-  const dataRoot = getRequiredOption(args, '--data-root');
-  const input = getRequiredOption(args, '--input');
+  const dataRoot = getOption(args, '--data-root');
 
-  if (dataRoot === undefined || input === undefined || dataRoot.startsWith('--') || input.startsWith('--')) {
-    const error = 'query-history failed: missing required --data-root and --input';
+  if (!hasOptionValue(args, '--data-root') || (!hasOptionValue(args, '--input') && !hasOptionValue(args, '--input-file'))) {
+    const error = formatCommandError('query-history', 'missing required --data-root and one of --input or --input-file');
 
     stderr(error);
     return { success: false, exitCode: 1, output: error, error };
   }
 
+  const resolvedDataRoot = dataRoot as string;
+
   const listArtifactRecords = options.listArtifactRecords ?? listArtifactRecordsFromStore;
   const listMemoryRecords = options.listMemoryRecords ?? listMemoryRecordsFromStore;
 
   try {
+    const input = await readInputValue(args);
     const { query, limit } = parseQueryHistoryInput(input);
     const [loadedMemories, loadedArtifacts] = await Promise.all([
-      listMemoryRecords(dataRoot),
-      listArtifactRecords(dataRoot)
+      listMemoryRecords(resolvedDataRoot),
+      listArtifactRecords(resolvedDataRoot)
     ]);
     const memoryRecords = Array.isArray(loadedMemories) ? loadedMemories : loadedMemories.records;
     const artifactRecords = Array.isArray(loadedArtifacts) ? loadedArtifacts : loadedArtifacts.records;
@@ -200,14 +194,20 @@ export async function runQueryHistoryCommand(
     const artifacts = rankArtifacts(query, artifactRecords).slice(0, limit);
     const memorySummary = memories.map((entry) => entry.record.id).join(', ') || 'none';
     const artifactSummary = artifacts.map((entry) => entry.record.id).join(', ') || 'none';
-    const output = `memories=${memorySummary}\nartifacts=${artifactSummary}`;
+    const output = renderJsonOutput(args, { query, memories, artifacts, warnings }, () => {
+      return `Top memories: ${memorySummary}\nTop artifacts: ${artifactSummary}`;
+    });
 
-    for (const warning of warnings) {
-      stdout.log(warning);
+    if (hasFlag(args, '--json')) {
+      emitOutput(stdout, output);
+    } else {
+      for (const warning of warnings) {
+        stdout.log(warning);
+      }
+
+      stdout.log(`Top memories: ${memorySummary}`);
+      stdout.log(`Top artifacts: ${artifactSummary}`);
     }
-
-    stdout.log(`Top memories: ${memorySummary}`);
-    stdout.log(`Top artifacts: ${artifactSummary}`);
 
     return {
       success: true,
@@ -220,7 +220,7 @@ export async function runQueryHistoryCommand(
     };
   } catch (caughtError) {
     const message = caughtError instanceof Error ? caughtError.message : String(caughtError);
-    const error = `query-history failed: ${message}`;
+    const error = formatCommandError('query-history', message);
 
     stderr(error);
     return { success: false, exitCode: 1, output: error, error };
