@@ -2,7 +2,7 @@ import { pathToFileURL } from 'node:url';
 
 import { CORE_PACKAGE_NAME } from '@meta-harness/core';
 
-import { buildFixtureArtifacts } from './build-first-slice';
+import { buildFixtureArtifacts } from './build-fixture-artifacts';
 
 type Output = Pick<typeof console, 'log'>;
 type BuildFixtureArtifacts = typeof buildFixtureArtifacts;

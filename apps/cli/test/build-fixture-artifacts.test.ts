@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { fixtureDefinitions } from '@meta-harness/fixtures';
 
-import { buildFixtureArtifacts } from '../src/build-first-slice';
+import { buildFixtureArtifacts } from '../src/build-fixture-artifacts';
 
 describe('buildFixtureArtifacts', () => {
   const tempDirectories: string[] = [];
