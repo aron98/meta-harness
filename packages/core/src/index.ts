@@ -18,8 +18,17 @@ export {
   type ArtifactRecord,
   type TaskType
 } from './artifact-record';
+export { compactionSummarySchema, parseCompactionSummary, type CompactionSummary } from './compaction-summary';
 export { loadArtifactRecord, writeArtifactRecord } from './artifact-store';
 export { canonicalFixtureSchema, type CanonicalFixture } from './canonical-fixture-schema';
+export {
+  createTaskEndArtifact
+} from './create-task-end-artifact';
+export {
+  createTaskStartContext,
+  type CreateTaskStartContextInput,
+  type CreateTaskStartContextResult
+} from './create-task-start-context';
 export {
   memoryConfidenceSchema,
   memoryKindSchema,
@@ -31,6 +40,11 @@ export {
 } from './memory-record';
 export { loadMemoryRecord, writeMemoryRecord } from './memory-store';
 export { normalizeFixture } from './normalize-fixture';
+export {
+  parseRuntimeTaskContext,
+  runtimeTaskContextSchema,
+  type RuntimeTaskContext
+} from './runtime-task-context';
 export { canonicalFixtureJsonSchema, fixtureAuthoringJsonSchema } from './schema-documents';
 export { renderFixtureSummary } from './render-fixture-summary';
 export { parseSessionPacket, sessionPacketSchema, type SessionPacket } from './session-packet';
@@ -45,6 +59,16 @@ export {
 } from './evaluate-packet';
 export { retrievalQuerySchema, parseRetrievalQuery, type RetrievalQuery } from './retrieval-query';
 export { rankArtifacts, rankMemories, type RetrievalReason, type ScoredRetrieval } from './retriever';
+export { parseTaskEndEvent, taskEndEventSchema, type TaskEndEvent } from './task-end-event';
+export {
+  parseTaskStartEvent,
+  runtimeVerificationStateSchema,
+  runtimeVerificationStatusSchema,
+  taskStartEventSchema,
+  type RuntimeVerificationState,
+  type RuntimeVerificationStatus,
+  type TaskStartEvent
+} from './task-start-event';
 export { classifyTaskType } from './task-classification';
 export { buildVerificationChecklist, type VerificationChecklistInput } from './verification-checklist';
 export { type SessionPacketRoute } from './session-packet';
