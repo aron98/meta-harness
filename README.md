@@ -36,12 +36,21 @@ Run the built CLI from the repo root:
 node apps/cli/dist/index.js --help
 ```
 
+The CLI build prepares the required workspace package outputs first, so `pnpm --filter @meta-harness/cli build` is enough to make built CLI commands runnable from this repo checkout.
+
 - `build-fixture-artifacts` - write fixture schemas and markdown into `docs/generated`
 - `log-artifact` - validate and store an artifact record
 - `promote-memory` - validate and store a memory record
 - `query-history` - rank stored memory and artifact history
 - `prepare-session` - build a session packet from stored history
 - `evaluate-packet` - compare retrieval-on versus retrieval-off packet quality
+
+For commands that accept structured input:
+
+- use `--input '<json>'` for inline JSON
+- or use `--input-file /path/to/input.json` for friendlier file-backed input
+- add `--json` to emit machine-readable output instead of the default human-readable summaries
+- warnings and failures use explicit prefixes such as `warning:` and `error: <command> failed: ...`
 
 ## Where to start
 

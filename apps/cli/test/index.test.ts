@@ -1,6 +1,6 @@
 import { execFile as execFileCallback } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { extname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { promisify } from 'node:util';
 
@@ -10,6 +10,20 @@ import { renderHelp, run } from '../src/index';
 
 const execFile = promisify(execFileCallback);
 const tempDirectories: string[] = [];
+const repoRoot = '/home/openclaw/.openclaw/workspace/projects/meta-harness/code/.worktrees/ux-hardening';
+
+async function runPnpm(args: readonly string[]) {
+  const pnpmExecPath = process.env.npm_execpath;
+
+  if (!pnpmExecPath) {
+    throw new Error('npm_execpath is required to run pnpm smoke tests');
+  }
+
+  const executable = extname(pnpmExecPath) ? process.execPath : pnpmExecPath;
+  const commandArgs = extname(pnpmExecPath) ? [pnpmExecPath, ...args] : [...args];
+
+  return execFile(executable, commandArgs, { cwd: repoRoot });
+}
 
 describe('renderHelp', () => {
   it('describes the scaffolded commands', () => {
@@ -91,12 +105,10 @@ describe('run', () => {
   });
 
   it('starts the built CLI help path without sibling workspace dist outputs', async () => {
-    await execFile('pnpm', ['--filter', '@meta-harness/cli', 'build'], {
-      cwd: '/home/openclaw/.openclaw/workspace/projects/meta-harness/code/.worktrees/ux-hardening'
-    });
+    await runPnpm(['--filter', '@meta-harness/cli', 'build']);
 
     const result = await execFile('node', ['apps/cli/dist/index.js', '--help'], {
-      cwd: '/home/openclaw/.openclaw/workspace/projects/meta-harness/code/.worktrees/ux-hardening'
+      cwd: repoRoot
     });
 
     expect(result.stdout).toContain('meta-harness CLI scaffold');
@@ -127,15 +139,13 @@ describe('run', () => {
       })
     );
 
-    await execFile('pnpm', ['--filter', '@meta-harness/cli', 'build'], {
-      cwd: '/home/openclaw/.openclaw/workspace/projects/meta-harness/code/.worktrees/ux-hardening'
-    });
+    await runPnpm(['--filter', '@meta-harness/cli', 'build']);
 
     const result = await execFile(
       'node',
       ['apps/cli/dist/index.js', 'log-artifact', '--data-root', dataRoot, '--input-file', inputFile, '--json'],
       {
-        cwd: '/home/openclaw/.openclaw/workspace/projects/meta-harness/code/.worktrees/ux-hardening'
+        cwd: repoRoot
       }
     );
 
