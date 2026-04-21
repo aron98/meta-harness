@@ -1,4 +1,4 @@
-# Phase 1 MVP Usage Guide
+# MVP Usage Guide
 
 This walkthrough uses the real built CLI contract and a temporary local data store.
 

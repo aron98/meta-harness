@@ -1,8 +1,8 @@
 # meta-harness monorepo
 
-`meta-harness` is a TypeScript pnpm workspace for a local, file-based Phase 1 harness loop. The repo already supports logging task artifacts, promoting scoped memory, retrieving prior evidence, preparing a session packet for a new task, and evaluating packet quality against benchmark fixtures.
+`meta-harness` is a TypeScript pnpm workspace for a local, file-based harness loop. The repo already supports logging task artifacts, promoting scoped memory, retrieving prior evidence, preparing a session packet for a new task, and evaluating packet quality against benchmark fixtures.
 
-## What the Phase 1 MVP can do
+## What the Current MVP Can Do
 
 - log validated artifact records into `data/artifacts/<repo-id>/<artifact-id>.json`
 - promote validated memory records into scoped files under `data/memory/`
@@ -13,7 +13,7 @@
 
 ## Workspace layout
 
-- `apps/cli` - user-facing CLI for the Phase 1 MVP
+- `apps/cli` - user-facing CLI for the current MVP
 - `packages/core` - schemas, storage helpers, retrieval, packet prep, and evaluation logic
 - `packages/fixtures` - bundled benchmark fixtures and generated fixture inputs
 - `packages/plugin` - placeholder plugin adapter surface
@@ -45,5 +45,5 @@ node apps/cli/dist/index.js --help
 
 ## Where to start
 
-- Full walkthrough: `docs/usage/phase1-mvp.md`
+- Full walkthrough: `docs/usage/mvp-usage.md`
 - Command reference: `apps/cli/README.md`

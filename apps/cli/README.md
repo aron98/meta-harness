@@ -1,6 +1,6 @@
 # @meta-harness/cli
 
-Phase 1 CLI for the local, file-based harness loop.
+CLI for the local, file-based harness loop.
 
 Build the workspace first:
 
