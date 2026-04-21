@@ -20,6 +20,7 @@ export const sessionPacketSchema = z.object({
 });
 
 export type SessionPacket = z.infer<typeof sessionPacketSchema>;
+export type SessionPacketRoute = z.infer<typeof fixtureRouteSchema>;
 
 export function parseSessionPacket(input: unknown): SessionPacket {
   return sessionPacketSchema.parse(input);
