@@ -1,23 +1,49 @@
 # meta-harness monorepo
 
-Initial TypeScript pnpm workspace scaffold for the OpenCode meta-harness project.
+`meta-harness` is a TypeScript pnpm workspace for a local, file-based Phase 1 harness loop. The repo already supports logging task artifacts, promoting scoped memory, retrieving prior evidence, preparing a session packet for a new task, and evaluating packet quality against benchmark fixtures.
+
+## What the Phase 1 MVP can do
+
+- log validated artifact records into `data/artifacts/<repo-id>/<artifact-id>.json`
+- promote validated memory records into scoped files under `data/memory/`
+- rank stored artifacts and memories for a retrieval query
+- prepare a session packet from stored history with selected evidence, a suggested route, and a verification checklist
+- evaluate retrieval-on versus retrieval-off packet generation over bundled benchmark fixtures
+- generate fixture docs and schemas into `docs/generated`
 
 ## Workspace layout
 
-- `packages/core` - shared schemas and tiny core helpers
+- `apps/cli` - user-facing CLI for the Phase 1 MVP
+- `packages/core` - schemas, storage helpers, retrieval, packet prep, and evaluation logic
+- `packages/fixtures` - bundled benchmark fixtures and generated fixture inputs
 - `packages/plugin` - placeholder plugin adapter surface
-- `packages/fixtures` - reusable test fixtures
-- `apps/cli` - minimal CLI entrypoint
+- `docs` - usage docs and generated/reference material
 
-## Commands
+## Install and verify
 
-- `pnpm install` - install workspace dependencies
-- `pnpm build` - build all packages and apps with tsup
-- `pnpm test` - run Vitest across the workspace
-- `pnpm typecheck` - run TypeScript typechecks across the workspace
-- `pnpm lint` - currently aliases typecheck to keep the scaffold lean
+```bash
+pnpm install
+pnpm build
+pnpm test
+pnpm typecheck
+```
 
-## Notes
+## CLI commands
 
-- `zod` is installed only in `packages/core`, where runtime schema parsing belongs.
-- The plugin package is intentionally a placeholder adapter and does not implement harness behavior yet.
+Run the built CLI from the repo root:
+
+```bash
+node apps/cli/dist/index.js --help
+```
+
+- `build-fixture-artifacts` - write fixture schemas and markdown into `docs/generated`
+- `log-artifact` - validate and store an artifact record
+- `promote-memory` - validate and store a memory record
+- `query-history` - rank stored memory and artifact history
+- `prepare-session` - build a session packet from stored history
+- `evaluate-packet` - compare retrieval-on versus retrieval-off packet quality
+
+## Where to start
+
+- Full walkthrough: `docs/usage/phase1-mvp.md`
+- Command reference: `apps/cli/README.md`
