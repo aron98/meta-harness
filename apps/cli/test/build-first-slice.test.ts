@@ -7,9 +7,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { fixtureDefinitions } from '@meta-harness/fixtures';
 
-import { buildFirstSliceArtifacts } from '../src/build-first-slice';
+import { buildFixtureArtifacts } from '../src/build-first-slice';
 
-describe('buildFirstSliceArtifacts', () => {
+describe('buildFixtureArtifacts', () => {
   const tempDirectories: string[] = [];
 
   afterEach(async () => {
@@ -24,7 +24,7 @@ describe('buildFirstSliceArtifacts', () => {
       `fixtures/${fixture.id}.md`
     ]);
 
-    const result = await buildFirstSliceArtifacts({ outputRoot });
+    const result = await buildFixtureArtifacts({ outputRoot });
 
     expect(result.writtenFiles).toEqual(expect.arrayContaining([
       'schemas/fixture-authoring.schema.json',
@@ -63,7 +63,7 @@ describe('buildFirstSliceArtifacts', () => {
     process.chdir(outsideDirectory);
 
     try {
-      await buildFirstSliceArtifacts({
+      await buildFixtureArtifacts({
         mkdir,
         writeFile: async (filePath) => {
           writeTargets.push(String(filePath));

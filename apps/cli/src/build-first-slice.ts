@@ -17,7 +17,7 @@ type Mkdir = typeof import('node:fs/promises').mkdir;
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 const defaultOutputRoot = join(repoRoot, 'docs/generated');
 
-export async function buildFirstSliceArtifacts(options: {
+export async function buildFixtureArtifacts(options: {
   outputRoot?: string;
   writeFile?: WriteFile;
   mkdir?: Mkdir;

@@ -6,7 +6,7 @@ describe('renderHelp', () => {
   it('describes the scaffolded commands', () => {
     expect(renderHelp()).toContain('@meta-harness/core');
     expect(renderHelp()).toContain('pnpm test');
-    expect(renderHelp()).toContain('build-first-slice');
+    expect(renderHelp()).toContain('build-fixture-artifacts');
   });
 });
 
@@ -18,7 +18,7 @@ describe('run', () => {
 
     expect(result.success).toBe(true);
     expect(result.exitCode).toBe(0);
-    expect(result.output).toContain('build-first-slice');
+    expect(result.output).toContain('build-fixture-artifacts');
     expect(log).toHaveBeenCalledWith(result.output);
   });
 
@@ -39,37 +39,37 @@ describe('run', () => {
     expect(log).toHaveBeenCalledWith(renderHelp());
   });
 
-  it('runs build-first-slice via injected builder', async () => {
+  it('runs build-fixture-artifacts via injected builder', async () => {
     const log = vi.fn();
-    const buildFirstSliceArtifacts = vi.fn().mockResolvedValue({
+    const buildFixtureArtifacts = vi.fn().mockResolvedValue({
       writtenFiles: ['schemas/fixture-authoring.schema.json', 'fixtures/index.md']
     });
 
-    const result = await run(['build-first-slice'], { log }, { error: vi.fn(), buildFirstSliceArtifacts });
+    const result = await run(['build-fixture-artifacts'], { log }, { error: vi.fn(), buildFixtureArtifacts });
 
     expect(result.success).toBe(true);
     expect(result.exitCode).toBe(0);
-    expect(buildFirstSliceArtifacts).toHaveBeenCalledTimes(1);
+    expect(buildFixtureArtifacts).toHaveBeenCalledTimes(1);
     expect(log).toHaveBeenNthCalledWith(1, 'Wrote files:');
     expect(log).toHaveBeenNthCalledWith(2, '- schemas/fixture-authoring.schema.json');
     expect(log).toHaveBeenNthCalledWith(3, '- fixtures/index.md');
   });
 
-  it('returns a failed result when build-first-slice rejects', async () => {
+  it('returns a failed result when build-fixture-artifacts rejects', async () => {
     const log = vi.fn();
     const error = vi.fn();
-    const buildFirstSliceArtifacts = vi.fn().mockRejectedValue(new Error('disk full'));
+    const buildFixtureArtifacts = vi.fn().mockRejectedValue(new Error('disk full'));
 
-    const result = await run(['build-first-slice'], { log }, { error, buildFirstSliceArtifacts });
+    const result = await run(['build-fixture-artifacts'], { log }, { error, buildFixtureArtifacts });
 
     expect(result.success).toBe(false);
     expect(result.exitCode).toBe(1);
     if (result.success) {
-      throw new Error('expected build-first-slice rejection to fail');
+      throw new Error('expected build-fixture-artifacts rejection to fail');
     }
-    expect(result.error).toContain('build-first-slice failed');
+    expect(result.error).toContain('build-fixture-artifacts failed');
     expect(result.error).toContain('disk full');
-    expect(error).toHaveBeenCalledWith(expect.stringContaining('build-first-slice failed'));
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('build-fixture-artifacts failed'));
     expect(log).not.toHaveBeenCalledWith(renderHelp());
   });
 });

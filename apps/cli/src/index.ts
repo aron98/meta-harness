@@ -2,10 +2,10 @@ import { pathToFileURL } from 'node:url';
 
 import { CORE_PACKAGE_NAME } from '@meta-harness/core';
 
-import { buildFirstSliceArtifacts } from './build-first-slice';
+import { buildFixtureArtifacts } from './build-first-slice';
 
 type Output = Pick<typeof console, 'log'>;
-type BuildFirstSliceArtifacts = typeof buildFirstSliceArtifacts;
+type BuildFixtureArtifacts = typeof buildFixtureArtifacts;
 
 export type RunResult =
   | { success: true; exitCode: 0; output: string }
@@ -16,7 +16,7 @@ export function renderHelp() {
     'meta-harness CLI scaffold',
     `Shared runtime package: ${CORE_PACKAGE_NAME}`,
     'Available commands:',
-    '  build-first-slice  Write generated fixture artifacts to docs/generated',
+    '  build-fixture-artifacts  Write generated fixture artifacts to docs/generated',
     '',
     'Available workspace commands:',
     '  pnpm test',
@@ -30,19 +30,19 @@ export async function run(
   stdout: Output = console,
   options: {
     error?: typeof console.error;
-    buildFirstSliceArtifacts?: BuildFirstSliceArtifacts;
+    buildFixtureArtifacts?: BuildFixtureArtifacts;
   } = {}
 ): Promise<RunResult> {
   const help = renderHelp();
   const stderr = options.error ?? console.error;
-  const buildArtifacts = options.buildFirstSliceArtifacts ?? buildFirstSliceArtifacts;
+  const buildArtifacts = options.buildFixtureArtifacts ?? buildFixtureArtifacts;
 
   if (args.includes('--help') || args.length === 0) {
     stdout.log(help);
     return { success: true, exitCode: 0, output: help };
   }
 
-  if (args[0] === 'build-first-slice') {
+  if (args[0] === 'build-fixture-artifacts') {
     try {
       const result = await buildArtifacts();
 
@@ -54,7 +54,7 @@ export async function run(
       return { success: true, exitCode: 0, output: result.writtenFiles.join('\n') };
     } catch (caughtError) {
       const message = caughtError instanceof Error ? caughtError.message : String(caughtError);
-      const error = `build-first-slice failed: ${message}`;
+      const error = `build-fixture-artifacts failed: ${message}`;
 
       stderr(error);
       return { success: false, exitCode: 1, output: error, error };
