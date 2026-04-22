@@ -1,6 +1,8 @@
 import { parseArtifactRecord, type ArtifactRecord } from './artifact-record';
 import { parseTaskEndEvent, type TaskEndEvent } from './task-end-event';
 
+export type CreateTaskEndArtifactInput = TaskEndEvent;
+
 function buildDiagnostics(taskEnd: TaskEndEvent): string[] {
   const diagnostics = [...taskEnd.diagnostics];
 
@@ -13,7 +15,7 @@ function buildDiagnostics(taskEnd: TaskEndEvent): string[] {
   return diagnostics;
 }
 
-export function createTaskEndArtifact(taskEndInput: TaskEndEvent): ArtifactRecord {
+export function createTaskEndArtifact(taskEndInput: CreateTaskEndArtifactInput): ArtifactRecord {
   const taskEnd = parseTaskEndEvent(taskEndInput);
 
   return parseArtifactRecord({

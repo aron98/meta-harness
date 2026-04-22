@@ -1,20 +1,22 @@
 # Current architecture
 
-This page describes the current architecture that exists in the local repo today. It is based on the code in `apps/cli`, `packages/core`, `packages/fixtures`, and `packages/plugin`, not on planned behavior.
+This page describes the current architecture that exists in the local repo today. It is based on the code in `apps/cli`, `packages/core`, `packages/fixtures`, `packages/plugin-core`, and `packages/plugins/opencode-meta-harness`, not on planned behavior.
 
 ## Package boundaries
 
 - `apps/cli` is the shipped command surface. It exposes the current commands for logging artifacts, promoting memory, querying history, preparing session packets, task start and task end bridge capture, retrieval inspection, session compaction, packet benchmark evaluation, and fixture artifact generation.
 - `packages/core` is the architectural center. It owns the record schemas, storage helpers, retrieval and ranking logic, session packet preparation, runtime bridge types and helpers, compaction helpers, and packet evaluation logic.
 - `packages/fixtures` contains benchmark fixture definitions that feed packet evaluation.
-- `packages/plugin` is a placeholder adapter package. It advertises placeholder metadata only and does not own the runtime bridge.
+- `packages/plugin-core` now defines the first host-neutral adapter seam. In this slice it exposes shared adapter contract types, thin lifecycle orchestration helpers for task start, task end, retrieval inspection, and compaction, bounded adapter storage helpers for runtime and observability records, plus an optional `policyInput` boundary for future retrieval, routing, and verification tuning. It still does not own runtime policy.
+- `packages/plugins/opencode-meta-harness` is the first thin OpenCode adapter package. In this slice it parses OpenCode hook payloads, maps them into host-neutral inputs, and exposes an adapter factory that composes the shared `packages/plugin-core` helpers rather than owning policy itself.
 
 ```mermaid
 flowchart TD
     CLI["apps/cli\nshipped command surface, including runtime bridge"]
     Core["packages/core\nschemas, storage, retrieval, packets, runtime bridge, evaluation"]
     Fixtures["packages/fixtures\nbenchmarkFixtures catalog"]
-    Plugin["packages/plugin\ncreatePlaceholderPluginAdapter"]
+    PluginCore["packages/plugin-core\nadapter contract + orchestration + storage/observability wrappers"]
+    OpenCodePlugin["packages/plugins/opencode-meta-harness\ncreateOpenCodeAdapter + payload mapping"]
 
     Artifact["ArtifactRecord\npackages/core/src/artifact-record.ts"]
     Memory["MemoryRecord\npackages/core/src/memory-record.ts"]
@@ -46,7 +48,8 @@ flowchart TD
     EndEvent --> EndArtifact
     RuntimeCtx --> Compact
     Eval --> Packet
-    Plugin -. future integration point .-> Core
+    PluginCore -. host-neutral adapter seam, storage/observability wrappers; policy still owned by core .-> Core
+    OpenCodePlugin -. thin host adapter over shared seam .-> PluginCore
 ```
 
 ## Persistent records and storage
@@ -127,6 +130,17 @@ The important architectural role is separation of concerns:
 
 That keeps retrieval inspection separate from storage and separate from automatic promotion behavior, which does not exist yet.
 
+## Host-neutral adapter seam in `packages/plugin-core`
+
+The new Task 1 seam in `packages/plugin-core` is intentionally thin:
+
+- `adapter-policy-input.ts` defines a small optional `AdapterPolicyInput` with `retrieval`, `routing`, and `verification` sections only
+- `host-adapter-contract.ts` defines generic lifecycle operations for task start, task end, retrieval inspection, and compaction without naming any OpenCode-specific hooks or payloads
+- `create-host-session.ts`, `create-host-artifact.ts`, `inspect-host-retrieval.ts`, and `compact-host-session.ts` wrap the existing `packages/core` helpers instead of creating a second runtime pipeline
+- omitting `policyInput` remains the default path, which preserves compatibility with the current `packages/core` behavior because this slice does not move or reinterpret policy yet
+
+This boundary exists so later host packages under `packages/plugins/` can translate host events into shared inputs without forking retrieval, routing, or verification ownership away from `packages/core`.
+
 ## Session packet preparation and runtime entry
 
 ### `SessionPacket`
@@ -152,6 +166,8 @@ Architecturally, this is the boundary object between retrieval and runtime execu
 - builds the `RetrievalQuery`
 - ranks memories and artifacts, slices them to the configured limits, and emits the packet
 - generates the current rationale string and verification checklist
+
+It also now accepts an optional adapter-facing `policyInput` seam, but the current implementation deliberately preserves the exact existing behavior when that input is omitted or supplied. `packages/plugin-core` passes this through so later adapters for OpenCode, Claude Code, or Codex can share the same boundary without moving policy ownership out of `packages/core`.
 
 That is why `SessionPacket` sits in the middle of both the shipped CLI flow and the newer Phase 2 bridge types.
 
@@ -491,17 +507,24 @@ It then compares the two packet outputs using the current metrics:
 
 The result includes per-benchmark outputs plus an aggregate summary. In the current architecture, this is the concrete path for checking whether retrieval improves packet quality.
 
-## Plugin placeholder
+## Plugin adapter layout
 
-`packages/plugin/src/index.ts` exports `createPlaceholderPluginAdapter()`. Today it returns placeholder metadata only:
+`packages/plugin-core/src/index.ts` now exports:
 
-- `kind: 'plugin-adapter'`
-- `packageName: '@meta-harness/plugin'`
-- `status: 'placeholder'`
+- the host-neutral adapter contract types
+- thin lifecycle orchestration wrappers
+- adapter storage helpers
+- bounded adapter observability helpers
 
-That means the plugin package marks an integration seam, but it does not yet own routing, retrieval, runtime state, or packet generation. Those behaviors still live in `packages/core`.
+`packages/plugins/opencode-meta-harness/src/index.ts` now exports:
+
+- `createOpenCodeAdapter()`
+- OpenCode hook payload parsers
+- OpenCode-to-host-neutral event mappers
+
+That means the repo now has the approved thin-adapter package boundary with real shared adapter behavior. Retrieval, routing, and verification policy still stay in `packages/core`, while OpenCode-specific hook translation lives in the adapter package.
 
 ## How this relates to the docs set
 
 - Use [../usage/mvp-usage.md](../usage/mvp-usage.md) for the current end-to-end CLI walkthrough.
-- Use this page when you need the detailed explanation of how the shipped records, retrieval pipeline, runtime bridge helpers, fixtures, and placeholder plugin fit together.
+- Use this page when you need the detailed explanation of how the shipped records, retrieval pipeline, runtime bridge helpers, fixtures, and plugin bootstrap layout fit together.
