@@ -4,6 +4,7 @@ This directory documents the current local repo state for `code/`.
 
 ## Start here
 
+- [Release process](./releasing.md) for Changesets version PRs, package tagging, and commit-scoped manual publish gating
 - [Usage guide](./usage/mvp-usage.md) for the shipped CLI walkthrough commands in `apps/cli`, including the Phase 2 runtime bridge surface
 - [Current architecture](./architecture/current-architecture.md) for the package boundaries, record schemas, retrieval pipeline, runtime bridge helpers, evaluation fixtures, and plugin bootstrap layout
 - [Command reference](./commands/README.md) for one page per shipped CLI command

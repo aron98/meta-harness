@@ -17,7 +17,7 @@ Treat `chat.message` as current implementation detail, not as a formally documen
 
 The retrieval integration in this slice is explicitly heuristic and observational. A small allowlist of retrieval-like tool names (`read`, `grep`, `glob`, and `webfetch`) triggers the existing adapter `inspectRetrieval()` seam from documented `tool.execute.before` inputs. In this slice, args are only observed in the host payload; they are not used for classification and are not interpreted as retrieval policy input. It does not introduce a first-class host retrieval contract, and it does not claim assistant-message or agent provenance that OpenCode does not expose in these hooks.
 
-Publish automation and npm release work are deferred to later slices.
+Release automation now uses Changesets plus a manual commit-scoped `publish.yml` dispatch. Until the first package version is actually published, keep using the repo-checkout flow below; once a package version is live on npm, the install shape described here becomes the supported published-package path. See `../../../docs/releasing.md` for the repo release flow.
 
 ## Install from a repo checkout
 
