@@ -75,7 +75,7 @@ export function parseAdapterObservabilityRecord(input: unknown): AdapterObservab
 
 export async function writeAdapterObservabilityRecord(dataRoot: string, input: AdapterObservabilityRecord): Promise<string> {
   const record = parseAdapterObservabilityRecord(input)
-  const filePath = `${dataRoot}/data/runtime/adapter-events/${assertValidPathSegment('hostId', record.hostId)}/${assertValidPathSegment('repoId', record.repoId)}/${assertValidPathSegment('taskId', record.taskId)}.json`
+  const filePath = `${dataRoot}/data/runtime/adapter-events/${assertValidPathSegment('hostId', record.hostId)}/${assertValidPathSegment('repoId', record.repoId)}/${assertValidPathSegment('taskId', record.taskId)}/${assertValidPathSegment('operation', record.operation)}.json`
 
   return writeJsonFile(filePath, record)
 }
