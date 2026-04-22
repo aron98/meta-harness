@@ -4,14 +4,14 @@ This page describes the current architecture that exists in the local repo today
 
 ## Package boundaries
 
-- `apps/cli` is the Phase 1 command surface. It exposes the currently shipped commands for logging artifacts, promoting memory, querying history, preparing session packets, evaluating packet benchmarks, and generating fixture artifacts.
+- `apps/cli` is the shipped command surface. It exposes the current commands for logging artifacts, promoting memory, querying history, preparing session packets, task start and task end bridge capture, retrieval inspection, session compaction, packet benchmark evaluation, and fixture artifact generation.
 - `packages/core` is the architectural center. It owns the record schemas, storage helpers, retrieval and ranking logic, session packet preparation, runtime bridge types and helpers, compaction helpers, and packet evaluation logic.
 - `packages/fixtures` contains benchmark fixture definitions that feed packet evaluation.
 - `packages/plugin` is a placeholder adapter package. It advertises placeholder metadata only and does not own the runtime bridge.
 
 ```mermaid
 flowchart TD
-    CLI["apps/cli\nshipped Phase 1 commands"]
+    CLI["apps/cli\nshipped command surface, including runtime bridge"]
     Core["packages/core\nschemas, storage, retrieval, packets, runtime bridge, evaluation"]
     Fixtures["packages/fixtures\nbenchmarkFixtures catalog"]
     Plugin["packages/plugin\ncreatePlaceholderPluginAdapter"]

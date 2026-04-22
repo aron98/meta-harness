@@ -4,11 +4,15 @@ import { formatCommandError } from './command-io';
 
 type Output = Pick<typeof console, 'log'>;
 type BuildFixtureArtifacts = typeof import('./build-fixture-artifacts').buildFixtureArtifacts;
+type CompactSession = typeof import('./compact-session').runCompactSessionCommand;
 type EvaluatePacket = typeof import('./evaluate-packet').runEvaluatePacketCommand;
+type InspectRetrieval = typeof import('./inspect-retrieval').runInspectRetrievalCommand;
 type LogArtifact = typeof import('./log-artifact').runLogArtifactCommand;
 type PromoteMemory = typeof import('./promote-memory').runPromoteMemoryCommand;
 type QueryHistory = typeof import('./query-history').runQueryHistoryCommand;
 type PrepareSession = typeof import('./prepare-session').runPrepareSessionCommand;
+type TaskEnd = typeof import('./task-end').runTaskEndCommand;
+type TaskStart = typeof import('./task-start').runTaskStartCommand;
 
 const CORE_PACKAGE_NAME = '@meta-harness/core';
 
@@ -24,6 +28,10 @@ export function renderHelp() {
     '  build-fixture-artifacts  Write generated fixture artifacts to docs/generated',
     '  log-artifact             Validate and store an artifact record',
     '  promote-memory          Validate and store a memory record',
+    '  task-start              Build and persist prepared runtime task context',
+    '  task-end                Capture runtime task completion and artifact output',
+    '  inspect-retrieval       Show selected records, scores, and reasons',
+    '  compact-session         Persist a typed bounded session summary',
     '  query-history           Rank stored memory and artifact history',
     '  prepare-session         Build a session packet from stored history',
     '  evaluate-packet         Compare packet retrieval-on versus retrieval-off',
@@ -41,11 +49,15 @@ export async function run(
   options: {
       error?: typeof console.error;
       buildFixtureArtifacts?: BuildFixtureArtifacts;
+      compactSession?: CompactSession;
       evaluatePacket?: EvaluatePacket;
+      inspectRetrieval?: InspectRetrieval;
       logArtifact?: LogArtifact;
       promoteMemory?: PromoteMemory;
       queryHistory?: QueryHistory;
-    prepareSession?: PrepareSession;
+      prepareSession?: PrepareSession;
+      taskEnd?: TaskEnd;
+      taskStart?: TaskStart;
   } = {}
 ): Promise<RunResult> {
   const help = renderHelp();
@@ -84,6 +96,26 @@ export async function run(
   if (args[0] === 'promote-memory') {
     const promoteMemory = options.promoteMemory ?? (await import('./promote-memory')).runPromoteMemoryCommand;
     return promoteMemory(args.slice(1), stdout, options);
+  }
+
+  if (args[0] === 'task-start') {
+    const taskStart = options.taskStart ?? (await import('./task-start')).runTaskStartCommand;
+    return taskStart(args.slice(1), stdout, options);
+  }
+
+  if (args[0] === 'task-end') {
+    const taskEnd = options.taskEnd ?? (await import('./task-end')).runTaskEndCommand;
+    return taskEnd(args.slice(1), stdout, options);
+  }
+
+  if (args[0] === 'inspect-retrieval') {
+    const inspectRetrieval = options.inspectRetrieval ?? (await import('./inspect-retrieval')).runInspectRetrievalCommand;
+    return inspectRetrieval(args.slice(1), stdout, options);
+  }
+
+  if (args[0] === 'compact-session') {
+    const compactSession = options.compactSession ?? (await import('./compact-session')).runCompactSessionCommand;
+    return compactSession(args.slice(1), stdout, options);
   }
 
   if (args[0] === 'query-history') {

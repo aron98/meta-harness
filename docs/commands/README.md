@@ -20,6 +20,10 @@ node apps/cli/dist/index.js <command> [...flags]
 - [`build-fixture-artifacts`](./build-fixture-artifacts.md), generate fixture schemas and markdown under `docs/generated`
 - [`log-artifact`](./log-artifact.md), validate and persist one artifact record
 - [`promote-memory`](./promote-memory.md), validate and persist one memory record
+- [`task-start`](./task-start.md), build and persist a runtime task context from stored history
+- [`task-end`](./task-end.md), capture runtime completion and derive a durable artifact record
+- [`inspect-retrieval`](./inspect-retrieval.md), inspect selected records, scores, and reasons explicitly
+- [`compact-session`](./compact-session.md), persist a bounded typed runtime compaction summary
 - [`query-history`](./query-history.md), rank stored artifacts and memories for a retrieval query
 - [`prepare-session`](./prepare-session.md), build a session packet from stored history
 - [`evaluate-packet`](./evaluate-packet.md), compare retrieval-on and retrieval-off packet quality over bundled fixtures
