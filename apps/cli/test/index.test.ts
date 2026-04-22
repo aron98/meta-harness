@@ -33,6 +33,10 @@ describe('renderHelp', () => {
     expect(renderHelp()).toContain('build-fixture-artifacts');
     expect(renderHelp()).toContain('log-artifact');
     expect(renderHelp()).toContain('promote-memory');
+    expect(renderHelp()).toContain('task-start');
+    expect(renderHelp()).toContain('task-end');
+    expect(renderHelp()).toContain('inspect-retrieval');
+    expect(renderHelp()).toContain('compact-session');
     expect(renderHelp()).toContain('query-history');
     expect(renderHelp()).toContain('prepare-session');
   });
@@ -220,5 +224,73 @@ describe('run', () => {
 
     expect(result).toEqual({ success: true, exitCode: 0, output: 'packet-001' });
     expect(prepareSession).toHaveBeenCalledWith(['--data-root', '/tmp/store', '--input', '{}'], { log }, expect.any(Object));
+  });
+
+  it('dispatches task-start via injected command handler', async () => {
+    const log = vi.fn();
+    const taskStart = vi.fn().mockResolvedValue({
+      success: true,
+      exitCode: 0,
+      output: 'task-start-001'
+    });
+
+    const result = await run(['task-start', '--data-root', '/tmp/store', '--input', '{}'], { log }, {
+      error: vi.fn(),
+      taskStart
+    });
+
+    expect(result).toEqual({ success: true, exitCode: 0, output: 'task-start-001' });
+    expect(taskStart).toHaveBeenCalledWith(['--data-root', '/tmp/store', '--input', '{}'], { log }, expect.any(Object));
+  });
+
+  it('dispatches task-end via injected command handler', async () => {
+    const log = vi.fn();
+    const taskEnd = vi.fn().mockResolvedValue({
+      success: true,
+      exitCode: 0,
+      output: 'task-end-001'
+    });
+
+    const result = await run(['task-end', '--data-root', '/tmp/store', '--input', '{}'], { log }, {
+      error: vi.fn(),
+      taskEnd
+    });
+
+    expect(result).toEqual({ success: true, exitCode: 0, output: 'task-end-001' });
+    expect(taskEnd).toHaveBeenCalledWith(['--data-root', '/tmp/store', '--input', '{}'], { log }, expect.any(Object));
+  });
+
+  it('dispatches inspect-retrieval via injected command handler', async () => {
+    const log = vi.fn();
+    const inspectRetrieval = vi.fn().mockResolvedValue({
+      success: true,
+      exitCode: 0,
+      output: 'inspect-001'
+    });
+
+    const result = await run(['inspect-retrieval', '--data-root', '/tmp/store', '--input', '{}'], { log }, {
+      error: vi.fn(),
+      inspectRetrieval
+    });
+
+    expect(result).toEqual({ success: true, exitCode: 0, output: 'inspect-001' });
+    expect(inspectRetrieval).toHaveBeenCalledWith(['--data-root', '/tmp/store', '--input', '{}'], { log }, expect.any(Object));
+  });
+
+  it('dispatches compact-session via injected command handler', async () => {
+    const log = vi.fn();
+    const compactSession = vi.fn().mockResolvedValue({
+      success: true,
+      exitCode: 0,
+      output: 'compact-001'
+    });
+
+    const result = await run(['compact-session', '--data-root', '/tmp/store', '--input', '{}'], { log }, {
+      error: vi.fn(),
+      compactSession
+    });
+
+    expect(result).toEqual({ success: true, exitCode: 0, output: 'compact-001' });
+    expect(compactSession).toHaveBeenCalledWith(['--data-root', '/tmp/store', '--input', '{}'], { log }, expect.any(Object));
   });
 });

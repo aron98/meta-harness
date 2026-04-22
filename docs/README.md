@@ -4,13 +4,13 @@ This directory documents the current local repo state for `code/`.
 
 ## Start here
 
-- [Usage guide](./usage/mvp-usage.md) for the shipped Phase 1 walkthrough commands in `apps/cli`
+- [Usage guide](./usage/mvp-usage.md) for the shipped CLI walkthrough commands in `apps/cli`, including the Phase 2 runtime bridge surface
 - [Current architecture](./architecture/current-architecture.md) for the package boundaries, record schemas, retrieval pipeline, runtime bridge helpers, evaluation fixtures, and plugin placeholder
 - [Command reference](./commands/README.md) for one page per shipped CLI command
 
 ## What these docs cover today
 
-- `apps/cli` is the shipped command surface for generating fixture artifacts, logging artifacts, promoting memory, querying history, preparing session packets, and evaluating bundled benchmarks
+- `apps/cli` is the shipped command surface for generating fixture artifacts, logging artifacts, promoting memory, querying history, preparing session packets, simulating runtime task lifecycle hooks, inspecting retrieval explicitly, compacting active task state, and evaluating bundled benchmarks
 - `packages/core` owns the record schemas, storage helpers, retrieval and ranking logic, packet preparation, runtime bridge types and helpers, and evaluation logic
 - `packages/fixtures` supplies the benchmark fixtures used by packet evaluation
 - `packages/plugin` is only a placeholder adapter surface today
