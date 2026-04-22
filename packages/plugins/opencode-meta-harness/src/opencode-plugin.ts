@@ -21,9 +21,7 @@ type OpenCodeChatMessageOutput = {
 }
 
 type OpenCodeHooks = {
-  chat?: {
-    message?: (input: OpenCodeChatMessageInput, output: OpenCodeChatMessageOutput) => Promise<void>
-  }
+  'chat.message'?: (input: OpenCodeChatMessageInput, output: OpenCodeChatMessageOutput) => Promise<void>
 }
 
 export type OpenCodePluginOptions = {
@@ -53,32 +51,30 @@ export function createOpenCodePlugin(dependencies: OpenCodePluginFactoryDependen
       const adapter = createAdapter({ dataRoot })
 
       return {
-        chat: {
-          async message(messageInput, messageOutput) {
-            const taskText = extractTaskText(messageOutput)
+        'chat.message': async (messageInput, messageOutput) => {
+          const taskText = extractTaskText(messageOutput)
 
-            if (taskText.length === 0) {
-              return
-            }
+          if (taskText.length === 0) {
+            return
+          }
 
-            const referenceTime = now()
-            const messageIdentity = messageInput.messageID ?? `${messageInput.sessionID}:${referenceTime}`
+          const referenceTime = now()
+          const messageIdentity = messageInput.messageID ?? `${messageInput.sessionID}:${referenceTime}`
 
-            try {
-              await adapter.startTask({
-                packetId: messageInput.messageID ?? `${messageIdentity}:packet`,
-                repoId,
-                taskId: messageInput.messageID ?? `${messageIdentity}:chat-message`,
-                taskText,
-                taskType: 'analysis',
-                prompt: taskText,
-                memoryRecords: [],
-                artifactRecords: [],
-                referenceTime
-              })
-            } catch {
-              return
-            }
+          try {
+            await adapter.startTask({
+              packetId: messageInput.messageID ?? `${messageIdentity}:packet`,
+              repoId,
+              taskId: messageInput.messageID ?? `${messageIdentity}:chat-message`,
+              taskText,
+              taskType: 'analysis',
+              prompt: taskText,
+              memoryRecords: [],
+              artifactRecords: [],
+              referenceTime
+            })
+          } catch {
+            return
           }
         }
       }

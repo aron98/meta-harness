@@ -49,7 +49,7 @@ importers:
         version: link:../core
 
   packages/plugins/opencode-meta-harness:
-    dependencies:
+    devDependencies:
       '@meta-harness/core':
         specifier: workspace:*
         version: link:../../core

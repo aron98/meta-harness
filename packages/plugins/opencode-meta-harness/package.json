@@ -16,11 +16,11 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --dts --format esm,cjs --clean",
+    "build": "tsup --config tsup.config.ts",
     "test": "pnpm --dir ../../.. exec vitest run packages/plugins/opencode-meta-harness/test",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
-  "dependencies": {
+  "devDependencies": {
     "@meta-harness/core": "workspace:*",
     "@meta-harness/plugin-core": "workspace:*"
   }
