@@ -54,5 +54,7 @@ For commands that accept structured input:
 
 ## Where to start
 
-- Full walkthrough: `docs/usage/mvp-usage.md`
-- Command reference: `apps/cli/README.md`
+- Docs landing page: [`docs/README.md`](./docs/README.md)
+- Architecture reference: [`docs/architecture/current-architecture.md`](./docs/architecture/current-architecture.md)
+- Command reference: [`docs/commands/README.md`](./docs/commands/README.md)
+- Full walkthrough: [`docs/usage/mvp-usage.md`](./docs/usage/mvp-usage.md)
