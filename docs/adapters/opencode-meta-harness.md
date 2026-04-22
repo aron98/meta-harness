@@ -44,4 +44,14 @@ Mapped host-neutral adapter input:
 
 The mapping layer only renames and forwards values. The adapter factory then composes that mapping with the shared `packages/plugin-core` lifecycle, storage, and observability helpers. Retrieval, routing, and verification policy still belong to `packages/core` and the shared seam in `packages/plugin-core`.
 
+## Current host integration slice
+
+The package now also exports a default OpenCode plugin module with id `opencode-meta-harness`.
+
+That plugin currently wires one real host hook:
+
+- `chat.message` → derive a local task-start request → call the thin adapter in shadow mode
+
+This keeps the host-integration slice narrow while proving the package can be loaded as an actual OpenCode plugin module rather than only as a local library.
+
 Later OpenCode adapter work should keep calling those shared `packages/plugin-core` helpers rather than inventing new host-local storage schemas.
