@@ -1,5 +1,7 @@
 import { basename } from 'node:path'
 
+import type { SessionPacketRoute, TaskType } from '@meta-harness/core'
+
 import { createOpenCodeAdapter } from './create-opencode-adapter'
 
 type OpenCodePluginInput = {
@@ -22,6 +24,21 @@ type OpenCodeChatMessageOutput = {
 
 type OpenCodeHooks = {
   'chat.message'?: (input: OpenCodeChatMessageInput, output: OpenCodeChatMessageOutput) => Promise<void>
+  event?: (input: OpenCodeEventInput) => Promise<void>
+}
+
+type OpenCodeSessionStatusPayload = {
+  sessionID?: string
+  status?: {
+    type?: string
+  }
+}
+
+type OpenCodeEventInput = {
+  event: {
+    type: string
+    properties?: Record<string, unknown>
+  }
 }
 
 export type OpenCodePluginOptions = {
@@ -34,6 +51,23 @@ type OpenCodePluginFactoryDependencies = {
   now?: () => string
 }
 
+type TrackedTask = {
+  repoId: string
+  taskId: string
+  taskText: string
+  taskType: TaskType
+  suggestedRoute: SessionPacketRoute
+  selectedMemoryIds: string[]
+  selectedArtifactIds: string[]
+  verificationState: {
+    status: 'pending' | 'passed' | 'failed' | 'skipped'
+    checklist: string[]
+    completedSteps: string[]
+  }
+  unresolvedQuestions: string[]
+  startedAt: string
+}
+
 export type OpenCodePluginModule = {
   id: string
   server: (input: OpenCodePluginInput, options?: OpenCodePluginOptions) => Promise<OpenCodeHooks>
@@ -42,6 +76,7 @@ export type OpenCodePluginModule = {
 export function createOpenCodePlugin(dependencies: OpenCodePluginFactoryDependencies = {}): OpenCodePluginModule {
   const createAdapter = dependencies.createAdapter ?? createOpenCodeAdapter
   const now = dependencies.now ?? (() => new Date().toISOString())
+  const activeTasks = new Map<string, TrackedTask>()
 
   return {
     id: 'opencode-meta-harness',
@@ -61,25 +96,96 @@ export function createOpenCodePlugin(dependencies: OpenCodePluginFactoryDependen
           const referenceTime = now()
           const messageIdentity = messageInput.messageID ?? `${messageInput.sessionID}:${referenceTime}`
 
-          try {
-            await adapter.startTask({
-              packetId: messageInput.messageID ?? `${messageIdentity}:packet`,
-              repoId,
-              taskId: messageInput.messageID ?? `${messageIdentity}:chat-message`,
+            try {
+              const startResult = await adapter.startTask({
+                packetId: messageInput.messageID ?? `${messageIdentity}:packet`,
+                repoId,
+                taskId: messageInput.messageID ?? `${messageIdentity}:chat-message`,
               taskText,
               taskType: 'analysis',
               prompt: taskText,
               memoryRecords: [],
-              artifactRecords: [],
-              referenceTime
+                artifactRecords: [],
+                referenceTime
+              })
+
+              activeTasks.set(messageInput.sessionID, {
+                repoId,
+                taskId: startResult.result.context.taskId ?? (messageInput.messageID ?? `${messageIdentity}:chat-message`),
+                taskText,
+                taskType: startResult.result.context.packet.taskType,
+                suggestedRoute: startResult.result.context.packet.suggestedRoute,
+                selectedMemoryIds: [...startResult.result.context.packet.selectedMemoryIds],
+                selectedArtifactIds: [...startResult.result.context.packet.selectedArtifactIds],
+                verificationState: {
+                  status: startResult.result.taskStart.verificationState.status,
+                  checklist: [...startResult.result.taskStart.verificationState.checklist],
+                  completedSteps: [...startResult.result.taskStart.verificationState.completedSteps]
+                },
+                unresolvedQuestions: [...startResult.result.taskStart.unresolvedQuestions],
+                startedAt: startResult.result.taskStart.startedAt
+              })
+            } catch {
+              return
+            }
+        },
+        event: async ({ event }) => {
+          const statusPayload = asSessionStatusPayload(event.properties)
+          const sessionID = statusPayload.sessionID
+          if (!sessionID) {
+            return
+          }
+
+          const tracked = activeTasks.get(sessionID)
+          if (!tracked) {
+            return
+          }
+
+          const isIdleTransition = event.type === 'session.status' && statusPayload.status?.type === 'idle'
+          const isIdleFallback = event.type === 'session.idle'
+          if (!isIdleTransition && !isIdleFallback) {
+            return
+          }
+
+          try {
+            await adapter.endTask({
+              id: `${tracked.taskId}:end`,
+              repoId: tracked.repoId,
+              taskId: tracked.taskId,
+              taskText: tracked.taskText,
+              taskType: tracked.taskType,
+              promptSummary: tracked.taskText,
+              selectedMemoryIds: tracked.selectedMemoryIds,
+              selectedArtifactIds: tracked.selectedArtifactIds,
+              suggestedRoute: tracked.suggestedRoute,
+              verificationState: tracked.verificationState,
+              unresolvedQuestions: tracked.unresolvedQuestions,
+              filesInspected: [],
+              filesChanged: [],
+              commands: [],
+              diagnostics: ['Derived from OpenCode session idle signal.'],
+              outcome: 'partial',
+              tags: ['opencode', 'host-integration', event.type],
+              startedAt: tracked.startedAt,
+              endedAt: now()
             })
           } catch {
             return
+          } finally {
+            activeTasks.delete(sessionID)
           }
         }
       }
     }
   }
+}
+
+function asSessionStatusPayload(value: Record<string, unknown> | undefined): OpenCodeSessionStatusPayload {
+  if (!value || typeof value !== 'object') {
+    return {}
+  }
+
+  return value as OpenCodeSessionStatusPayload
 }
 
 function deriveRepoId(input: OpenCodePluginInput): string {

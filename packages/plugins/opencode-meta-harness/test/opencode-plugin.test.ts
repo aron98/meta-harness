@@ -82,4 +82,96 @@ describe('OpenCode plugin host integration', () => {
 
     expect(startTask).toHaveBeenCalledTimes(1)
   })
+
+  it('derives a shadow task-end call from session.status idle using the tracked session task', async () => {
+    const startTask = vi.fn().mockResolvedValue({
+      filePath: '/tmp/store/data/runtime/task-start/repo-alpha/message-001.json',
+      observabilityFilePath: '/tmp/store/data/runtime/adapter-events/opencode/repo-alpha/message-001/task-start.json',
+      result: {
+        taskStart: {
+          startedAt: '2026-04-22T15:20:00.000Z',
+          verificationState: { status: 'pending', checklist: ['Capture evidence'], completedSteps: [] },
+          unresolvedQuestions: []
+        },
+        context: {
+          taskId: 'message-001',
+          packet: {
+            taskType: 'analysis',
+            suggestedRoute: 'explore',
+            selectedMemoryIds: ['memory-1'],
+            selectedArtifactIds: ['artifact-1']
+          }
+        }
+      }
+    })
+    const endTask = vi.fn().mockResolvedValue(undefined)
+    const createAdapter = vi.fn().mockReturnValue({ startTask, endTask })
+
+    const plugin = createOpenCodePlugin({ createAdapter, now: () => '2026-04-22T15:25:00.000Z' })
+    const hooks = await plugin.server({ project: { id: 'repo-alpha' }, directory: '/tmp/repo-alpha' })
+
+    await hooks['chat.message']?.(
+      { sessionID: 'session-010', messageID: 'message-001' },
+      { message: 'Inspect the task-end host integration boundary.' }
+    )
+    await hooks.event?.({ event: { type: 'session.status', properties: { sessionID: 'session-010', status: { type: 'idle' } } } })
+
+    expect(endTask).toHaveBeenCalledWith({
+      id: 'message-001:end',
+      repoId: 'repo-alpha',
+      taskId: 'message-001',
+      taskText: 'Inspect the task-end host integration boundary.',
+      taskType: 'analysis',
+      promptSummary: 'Inspect the task-end host integration boundary.',
+      selectedMemoryIds: ['memory-1'],
+      selectedArtifactIds: ['artifact-1'],
+      suggestedRoute: 'explore',
+      verificationState: { status: 'pending', checklist: ['Capture evidence'], completedSteps: [] },
+      unresolvedQuestions: [],
+      filesInspected: [],
+      filesChanged: [],
+      commands: [],
+      diagnostics: ['Derived from OpenCode session idle signal.'],
+      outcome: 'partial',
+      tags: ['opencode', 'host-integration', 'session.status'],
+      startedAt: '2026-04-22T15:20:00.000Z',
+      endedAt: '2026-04-22T15:25:00.000Z'
+    })
+  })
+
+  it('supports session.idle as a compatibility fallback signal', async () => {
+    const startTask = vi.fn().mockResolvedValue({
+      filePath: '/tmp/store/data/runtime/task-start/repo-alpha/message-002.json',
+      observabilityFilePath: '/tmp/store/data/runtime/adapter-events/opencode/repo-alpha/message-002/task-start.json',
+      result: {
+        taskStart: {
+          startedAt: '2026-04-22T15:30:00.000Z',
+          verificationState: { status: 'pending', checklist: [], completedSteps: [] },
+          unresolvedQuestions: []
+        },
+        context: {
+          taskId: 'message-002',
+          packet: {
+            taskType: 'analysis',
+            suggestedRoute: 'explore',
+            selectedMemoryIds: [],
+            selectedArtifactIds: []
+          }
+        }
+      }
+    })
+    const endTask = vi.fn().mockResolvedValue(undefined)
+    const createAdapter = vi.fn().mockReturnValue({ startTask, endTask })
+
+    const plugin = createOpenCodePlugin({ createAdapter, now: () => '2026-04-22T15:35:00.000Z' })
+    const hooks = await plugin.server({ project: { id: 'repo-alpha' }, directory: '/tmp/repo-alpha' })
+
+    await hooks['chat.message']?.(
+      { sessionID: 'session-011', messageID: 'message-002' },
+      { message: 'Inspect idle fallback.' }
+    )
+    await hooks.event?.({ event: { type: 'session.idle', properties: { sessionID: 'session-011' } } })
+
+    expect(endTask).toHaveBeenCalledTimes(1)
+  })
 })
