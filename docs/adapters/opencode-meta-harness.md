@@ -53,6 +53,7 @@ That plugin currently wires these real host hooks:
 - `chat.message` → derive a local task-start request → call the thin adapter in shadow mode
 - `event` on `session.status` with `idle` → derive a best-effort local task-end request → call the thin adapter in shadow mode
 - `event` on `session.idle` → compatibility fallback for the same best-effort local task-end request
+- `experimental.session.compacting` → derive a best-effort local compaction request → call the thin adapter in shadow mode
 
 This still keeps the host-integration slice narrow while proving the package can be loaded as an actual OpenCode plugin module rather than only as a local library.
 

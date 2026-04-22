@@ -11,6 +11,7 @@ This package currently provides:
 - a real `createOpenCodeAdapter()` entrypoint that composes the shared lifecycle, storage, and observability helpers
 - a real OpenCode plugin module that hooks `chat.message` and derives a shadow-mode `startTask` call
 - a real `event` hook that derives best-effort shadow-mode `endTask` calls from `session.status` idle transitions, with `session.idle` fallback
+- a real `experimental.session.compacting` hook that derives best-effort shadow-mode `compactSession` calls from the tracked task state
 
 The adapter still stays thin: retrieval, routing, verification policy, and durable record schemas remain owned by `@meta-harness/core` and the shared seam in `@meta-harness/plugin-core`.
 
@@ -47,3 +48,4 @@ In this host-integration slice it wires:
 - `chat.message` → shadow-mode `startTask`
 - `event` on `session.status` with `idle` → best-effort shadow-mode `endTask`
 - `event` on `session.idle` → compatibility fallback for the same best-effort `endTask`
+- `experimental.session.compacting` → best-effort shadow-mode `compactSession`
