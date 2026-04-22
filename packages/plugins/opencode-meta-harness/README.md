@@ -1,51 +1,83 @@
 # @meta-harness/opencode-meta-harness
 
-Thin OpenCode adapter package, now functional for the current slice.
+Thin OpenCode adapter package for the current host-integration slice.
 
-## Current slice
+## Status in this slice
 
-This package currently provides:
+This package already ships a real default OpenCode plugin module with id `opencode-meta-harness`.
 
-- OpenCode hook payload parsing
-- mapping from OpenCode payload names into host-neutral `@meta-harness/plugin-core` input shapes
-- a real `createOpenCodeAdapter()` entrypoint that composes the shared lifecycle, storage, and observability helpers
-- a real OpenCode plugin module that hooks `chat.message` and derives a shadow-mode `startTask` call
-- a real `event` hook that derives best-effort shadow-mode `endTask` calls from `session.status` idle transitions, with `session.idle` fallback
-- a real `experimental.session.compacting` hook that derives best-effort shadow-mode `compactSession` calls from the tracked task state
+Today that module is verified for these host surfaces:
 
-The adapter still stays thin: retrieval, routing, verification policy, and durable record schemas remain owned by `@meta-harness/core` and the shared seam in `@meta-harness/plugin-core`.
+- the `event` hook for session idle transitions
+- the `experimental.session.compacting` hook for best-effort compaction
+- the documented `tool.execute.before` hook for heuristic retrieval-like inspection
+- internal task-start wiring that is currently derived from `chat.message`
 
-## Example mapping
+Treat `chat.message` as current implementation detail, not as a formally documented public OpenCode hook contract.
 
-OpenCode payload:
+The retrieval integration in this slice is explicitly heuristic and observational. A small allowlist of retrieval-like tool names (`read`, `grep`, `glob`, and `webfetch`) triggers the existing adapter `inspectRetrieval()` seam from documented `tool.execute.before` inputs. In this slice, args are only observed in the host payload; they are not used for classification and are not interpreted as retrieval policy input. It does not introduce a first-class host retrieval contract, and it does not claim assistant-message or agent provenance that OpenCode does not expose in these hooks.
+
+Publish automation and npm release work are deferred to later slices.
+
+## Install from a repo checkout
+
+Use this flow when working from a local clone of this monorepo.
+
+1. Build the package from the repo root:
+
+   ```bash
+   pnpm --filter @meta-harness/opencode-meta-harness build
+   ```
+
+2. Point an OpenCode plugin file at the built artifact:
+
+   Project-local plugin file in `.opencode/plugins/meta-harness.js`:
+
+   ```js
+   export { default } from '/absolute/path/to/meta-harness/packages/plugins/opencode-meta-harness/dist/index.js'
+   ```
+
+   Global plugin file in `~/.config/opencode/plugins/meta-harness.js`:
+
+   ```js
+   export { default } from '/absolute/path/to/meta-harness/packages/plugins/opencode-meta-harness/dist/index.js'
+   ```
+
+3. Restart OpenCode so it reloads files from `.opencode/plugins/` or `~/.config/opencode/plugins/`.
+
+OpenCode loads local plugin files directly from those directories at startup, so this setup is the truthful way to use the current unpublished package from a repo checkout.
+
+## Planned npm install flow
+
+This package is not published to npm yet. After publish, the intended OpenCode config shape is:
 
 ```json
 {
-  "repoId": "repo-a",
-  "taskId": "task-001",
-  "taskText": "Inspect runtime flow",
-  "taskType": "analysis"
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["@meta-harness/opencode-meta-harness"]
 }
 ```
 
-Mapped host-neutral input:
+Put that in `opencode.json` or `~/.config/opencode/opencode.json` once a published package exists. Until then, prefer the repo-checkout file-based setup above.
 
-```json
-{
-  "repoId": "repo-a",
-  "taskId": "task-001",
-  "taskText": "Inspect runtime flow",
-  "taskType": "analysis"
-}
-```
+## Troubleshooting
 
-## Current host integration slice
+- `Cannot find module .../dist/index.js`: run `pnpm --filter @meta-harness/opencode-meta-harness build` again, then confirm the absolute path in your plugin file.
+- Plugin changes are not showing up: restart OpenCode, because plugin files are loaded at startup.
+- The plugin file loads but workspace imports fail: keep the re-export pointed at the built `dist/index.js` artifact, not `src/index.ts`.
+- You need npm-only dependencies for a local plugin directory: OpenCode loads local plugin files directly; use a config-directory `package.json` for extra dependencies, or wait for the published npm package flow.
 
-The default export is now an OpenCode plugin module with id `opencode-meta-harness`.
+## What this package wires today
 
-In this host-integration slice it wires:
+- `event` on `session.status` with `idle` -> best-effort shadow `endTask`
+- `event` on `session.idle` -> compatibility fallback for the same `endTask`
+- `experimental.session.compacting` -> best-effort shadow `compactSession`
+- `tool.execute.before` on retrieval-like tool names -> best-effort heuristic `inspectRetrieval`
 
-- `chat.message` → shadow-mode `startTask`
-- `event` on `session.status` with `idle` → best-effort shadow-mode `endTask`
-- `event` on `session.idle` → compatibility fallback for the same best-effort `endTask`
-- `experimental.session.compacting` → best-effort shadow-mode `compactSession`
+The package also currently derives task-start behavior from `chat.message`, but the public docs here intentionally avoid presenting that hook as a stable documented OpenCode contract.
+
+For the retrieval hook specifically, the plugin uses the documented tool name field to gate the allowlist and only observes args as host payload context in this slice. It does not fabricate message ids, assistant authorship, or agent attribution, and it treats unsupported tool names as non-retrieval events.
+
+## Architecture note
+
+The adapter stays thin. Retrieval, routing, verification policy, and durable record schemas remain owned by `@meta-harness/core` and the shared seam in `@meta-harness/plugin-core`.
