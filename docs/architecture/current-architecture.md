@@ -11,24 +11,24 @@ This page describes the current architecture that exists in the local repo today
 
 ```mermaid
 flowchart TD
-    CLI[apps/cli\nshipped Phase 1 commands]
-    Core[packages/core\nschemas, storage, retrieval, packets, runtime bridge, evaluation]
-    Fixtures[packages/fixtures\nbenchmarkFixtures catalog]
-    Plugin[packages/plugin\ncreatePlaceholderPluginAdapter]
+    CLI["apps/cli\nshipped Phase 1 commands"]
+    Core["packages/core\nschemas, storage, retrieval, packets, runtime bridge, evaluation"]
+    Fixtures["packages/fixtures\nbenchmarkFixtures catalog"]
+    Plugin["packages/plugin\ncreatePlaceholderPluginAdapter"]
 
-    Artifact[ArtifactRecord\npackages/core/src/artifact-record.ts]
-    Memory[MemoryRecord\npackages/core/src/memory-record.ts]
-    Query[RetrievalQuery\npackages/core/src/retrieval-query.ts]
-    Rank[rankMemories / rankArtifacts\npackages/core/src/retriever.ts]
-    Inspect[inspectRetrieval()\npackages/core/src/inspect-retrieval.ts]
-    Packet[SessionPacket\npackages/core/src/session-packet.ts]
-    StartCtx[createTaskStartContext()\npackages/core/src/create-task-start-context.ts]
-    StartEvent[TaskStartEvent\npackages/core/src/task-start-event.ts]
-    RuntimeCtx[RuntimeTaskContext\npackages/core/src/runtime-task-context.ts]
-    EndEvent[TaskEndEvent\npackages/core/src/task-end-event.ts]
-    EndArtifact[createTaskEndArtifact()\npackages/core/src/create-task-end-artifact.ts]
-    Compact[CompactionSummary /\ncreateCompactionSummary()]
-    Eval[evaluatePacketBenchmarks()\npackages/core/src/evaluate-packet.ts]
+    Artifact["ArtifactRecord\npackages/core/src/artifact-record.ts"]
+    Memory["MemoryRecord\npackages/core/src/memory-record.ts"]
+    Query["RetrievalQuery\npackages/core/src/retrieval-query.ts"]
+    Rank["rankMemories / rankArtifacts\npackages/core/src/retriever.ts"]
+    Inspect["inspectRetrieval()\npackages/core/src/inspect-retrieval.ts"]
+    Packet["SessionPacket\npackages/core/src/session-packet.ts"]
+    StartCtx["createTaskStartContext()\npackages/core/src/create-task-start-context.ts"]
+    StartEvent["TaskStartEvent\npackages/core/src/task-start-event.ts"]
+    RuntimeCtx["RuntimeTaskContext\npackages/core/src/runtime-task-context.ts"]
+    EndEvent["TaskEndEvent\npackages/core/src/task-end-event.ts"]
+    EndArtifact["createTaskEndArtifact()\npackages/core/src/create-task-end-artifact.ts"]
+    Compact["CompactionSummary /\ncreateCompactionSummary()"]
+    Eval["evaluatePacketBenchmarks()\npackages/core/src/evaluate-packet.ts"]
 
     CLI --> Core
     Fixtures --> Eval
