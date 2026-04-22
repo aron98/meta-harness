@@ -25,6 +25,7 @@ type OpenCodeChatMessageOutput = {
 type OpenCodeHooks = {
   'chat.message'?: (input: OpenCodeChatMessageInput, output: OpenCodeChatMessageOutput) => Promise<void>
   event?: (input: OpenCodeEventInput) => Promise<void>
+  'experimental.session.compacting'?: (input: OpenCodeCompactingInput, output: OpenCodeCompactingOutput) => Promise<void>
 }
 
 type OpenCodeSessionStatusPayload = {
@@ -39,6 +40,15 @@ type OpenCodeEventInput = {
     type: string
     properties?: Record<string, unknown>
   }
+}
+
+type OpenCodeCompactingInput = {
+  sessionID: string
+}
+
+type OpenCodeCompactingOutput = {
+  context: string[]
+  prompt?: string
 }
 
 export type OpenCodePluginOptions = {
@@ -173,6 +183,35 @@ export function createOpenCodePlugin(dependencies: OpenCodePluginFactoryDependen
             return
           } finally {
             activeTasks.delete(sessionID)
+          }
+        },
+        'experimental.session.compacting': async (compactingInput, compactingOutput) => {
+          const tracked = activeTasks.get(compactingInput.sessionID)
+          if (!tracked) {
+            return
+          }
+
+          const compactedAt = now()
+          const promptOverride = typeof compactingOutput.prompt === 'string' && compactingOutput.prompt.trim().length > 0
+            ? compactingOutput.prompt.trim()
+            : undefined
+
+          try {
+            await adapter.compactSession({
+              repoId: tracked.repoId,
+              taskId: tracked.taskId,
+              taskText: promptOverride ?? tracked.taskText,
+              selectedMemoryIds: tracked.selectedMemoryIds,
+              selectedArtifactIds: tracked.selectedArtifactIds,
+              suggestedRoute: tracked.suggestedRoute,
+              verificationState: tracked.verificationState,
+              unresolvedQuestions: tracked.unresolvedQuestions,
+              startedAt: tracked.startedAt,
+              endedAt: compactedAt,
+              compactedAt
+            })
+          } catch {
+            return
           }
         }
       }

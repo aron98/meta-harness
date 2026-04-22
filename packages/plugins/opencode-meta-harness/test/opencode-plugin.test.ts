@@ -174,4 +174,55 @@ describe('OpenCode plugin host integration', () => {
 
     expect(endTask).toHaveBeenCalledTimes(1)
   })
+
+  it('derives a shadow compaction call from experimental.session.compacting using the tracked task', async () => {
+    const startTask = vi.fn().mockResolvedValue({
+      filePath: '/tmp/store/data/runtime/task-start/repo-alpha/message-003.json',
+      observabilityFilePath: '/tmp/store/data/runtime/adapter-events/opencode/repo-alpha/message-003/task-start.json',
+      result: {
+        taskStart: {
+          startedAt: '2026-04-22T15:40:00.000Z',
+          verificationState: { status: 'pending', checklist: ['Capture evidence'], completedSteps: [] },
+          unresolvedQuestions: ['Should the smoke test run against staging?']
+        },
+        context: {
+          taskId: 'message-003',
+          packet: {
+            taskType: 'analysis',
+            suggestedRoute: 'explore',
+            selectedMemoryIds: ['memory-1'],
+            selectedArtifactIds: ['artifact-1']
+          }
+        }
+      }
+    })
+    const compactSession = vi.fn().mockResolvedValue(undefined)
+    const createAdapter = vi.fn().mockReturnValue({ startTask, compactSession })
+
+    const plugin = createOpenCodePlugin({ createAdapter, now: () => '2026-04-22T15:45:00.000Z' })
+    const hooks = await plugin.server({ project: { id: 'repo-alpha' }, directory: '/tmp/repo-alpha' })
+
+    await hooks['chat.message']?.(
+      { sessionID: 'session-012', messageID: 'message-003' },
+      { message: 'Inspect the compaction host integration boundary.' }
+    )
+    await hooks['experimental.session.compacting']?.(
+      { sessionID: 'session-012' },
+      { context: ['ctx-1'], prompt: 'Summarize the compaction boundary.' }
+    )
+
+    expect(compactSession).toHaveBeenCalledWith({
+      repoId: 'repo-alpha',
+      taskId: 'message-003',
+      taskText: 'Summarize the compaction boundary.',
+      selectedMemoryIds: ['memory-1'],
+      selectedArtifactIds: ['artifact-1'],
+      suggestedRoute: 'explore',
+      verificationState: { status: 'pending', checklist: ['Capture evidence'], completedSteps: [] },
+      unresolvedQuestions: ['Should the smoke test run against staging?'],
+      startedAt: '2026-04-22T15:40:00.000Z',
+      endedAt: '2026-04-22T15:45:00.000Z',
+      compactedAt: '2026-04-22T15:45:00.000Z'
+    })
+  })
 })
