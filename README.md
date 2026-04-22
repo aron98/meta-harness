@@ -33,6 +33,10 @@ pnpm test
 pnpm typecheck
 ```
 
+## Release flow
+
+Published workspace packages use Changesets for independent versions, a reviewed version PR on `main`, automatic per-package tags after the version PR merges, and a manual `publish.yml` dispatch with an immutable package tag or exact commit SHA as the only publish trigger. See [`docs/releasing.md`](./docs/releasing.md).
+
 ## CLI commands
 
 Run the built CLI from the repo root:
@@ -60,6 +64,7 @@ For commands that accept structured input:
 ## Where to start
 
 - Docs landing page: [`docs/README.md`](./docs/README.md)
+- Release process: [`docs/releasing.md`](./docs/releasing.md)
 - Architecture reference: [`docs/architecture/current-architecture.md`](./docs/architecture/current-architecture.md)
 - Command reference: [`docs/commands/README.md`](./docs/commands/README.md)
 - Full walkthrough: [`docs/usage/mvp-usage.md`](./docs/usage/mvp-usage.md)

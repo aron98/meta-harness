@@ -15,6 +15,14 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aron98/meta-harness.git",
+    "directory": "packages/plugin-core"
+  },
   "scripts": {
     "build": "tsup src/index.ts --dts --format esm,cjs --clean",
     "test": "pnpm --dir ../.. exec vitest run packages/plugin-core/test",

@@ -10,6 +10,14 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aron98/meta-harness.git",
+    "directory": "apps/cli"
+  },
   "scripts": {
     "build": "pnpm --dir ../.. --filter @meta-harness/core build && pnpm --dir ../.. --filter @meta-harness/fixtures build && tsup --config tsup.config.ts",
     "test": "pnpm --dir ../.. exec vitest run apps/cli/test",

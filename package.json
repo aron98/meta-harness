@@ -5,11 +5,17 @@
   "packageManager": "pnpm@10.6.0",
   "scripts": {
     "build": "pnpm -r run build",
+    "changeset": "changeset",
+    "changeset-status": "changeset status --verbose",
     "test": "vitest run",
     "typecheck": "pnpm -r run typecheck",
-    "lint": "pnpm run typecheck"
+    "lint": "pnpm run typecheck",
+    "publish-packages": "changeset publish",
+    "tag-packages": "changeset tag",
+    "version-packages": "changeset version"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.29.6",
     "@types/node": "^22.15.3",
     "tsup": "^8.3.5",
     "typescript": "^5.8.3",

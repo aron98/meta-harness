@@ -15,6 +15,14 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aron98/meta-harness.git",
+    "directory": "packages/fixtures"
+  },
   "scripts": {
     "build": "tsup src/index.ts --dts --format esm,cjs --clean",
     "test": "vitest run && pnpm run test:package",
