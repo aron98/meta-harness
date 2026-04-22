@@ -19,6 +19,11 @@ export {
   type TaskType
 } from './artifact-record';
 export { compactionSummarySchema, parseCompactionSummary, type CompactionSummary } from './compaction-summary';
+export {
+  COMPACTION_SUMMARY_LIMITS,
+  createCompactionSummary,
+  type CreateCompactionSummaryInput
+} from './create-compaction-summary';
 export { loadArtifactRecord, writeArtifactRecord } from './artifact-store';
 export { canonicalFixtureSchema, type CanonicalFixture } from './canonical-fixture-schema';
 export {
@@ -58,6 +63,11 @@ export {
   type EvaluatePacketMetrics
 } from './evaluate-packet';
 export { retrievalQuerySchema, parseRetrievalQuery, type RetrievalQuery } from './retrieval-query';
+export {
+  inspectRetrieval,
+  type InspectRetrievalInput,
+  type RetrievalInspection
+} from './inspect-retrieval';
 export { rankArtifacts, rankMemories, type RetrievalReason, type ScoredRetrieval } from './retriever';
 export { parseTaskEndEvent, taskEndEventSchema, type TaskEndEvent } from './task-end-event';
 export {
