@@ -2,6 +2,14 @@
 
 This walkthrough uses the real built CLI contract and a temporary local data store.
 
+## Scope of this guide
+
+This document covers the current Phase 1 CLI MVP walkthrough only. It describes the shipped `apps/cli` workflow for logging artifacts, promoting memory, querying history, preparing session packets, and evaluating packet quality.
+
+The shipped CLI also includes `build-fixture-artifacts` for generating `docs/generated` outputs, but that command is documented in `../commands/build-fixture-artifacts.md` rather than this walkthrough.
+
+If you need the current architecture view, including `TaskStartEvent`, `RuntimeTaskContext`, retrieval inspection, task-end artifact creation, and compaction helpers, see `../architecture/current-architecture.md`.
+
 ## Prerequisites
 
 From the repo root:
@@ -134,10 +142,7 @@ The next line is a JSON object with:
 
 Add `--json` to emit a single machine-readable payload: `{ evaluation, warnings }`.
 
-## Cleanup
+## Related docs
 
-Remove the temp store when you are done:
-
-```bash
-rm -rf "$DATA_ROOT"
-```
+- Architecture reference: `../architecture/current-architecture.md`
+- Docs landing page: `../README.md`
