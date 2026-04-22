@@ -9,6 +9,9 @@ permissions:
   contents: write
   pull-requests: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -20,13 +23,13 @@ jobs:
     outputs:
       has-changesets: ${{ steps.changesets.outputs.hasChangesets }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.6.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: pnpm
@@ -49,7 +52,7 @@ jobs:
     outputs:
       should-tag: ${{ steps.detect.outputs.should-tag }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 2
       - id: detect
@@ -82,18 +85,26 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 10.6.0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: git fetch --tags --force
+      - run: git remote -v
+      - run: git rev-parse HEAD
+      - run: git tag -l
+      - run: git ls-remote --tags origin
       - run: pnpm tag-packages
+      - run: git tag -l
+      - run: git show-ref --tags
       # Intentionally uses GITHUB_TOKEN through checkout's persisted credentials.
       # Bot-auth tag pushes do not recurse into publish automation; manual workflow_dispatch publish is the only publish trigger.
-      - run: git push --tags
+      - run: git push origin --tags
+      - run: git ls-remote --tags origin
