@@ -21,6 +21,7 @@ describe('OpenCode plugin install surface', () => {
     ) as {
       name: string
       files?: string[]
+      dependencies?: Record<string, string>
       exports?: {
         '.': {
           import?: string
@@ -36,6 +37,11 @@ describe('OpenCode plugin install surface', () => {
       import: './dist/index.js',
       require: './dist/index.cjs',
       types: './dist/index.d.ts'
+    })
+    expect(packageJson.dependencies).toMatchObject({
+      '@meta-harness/core': 'workspace:*',
+      '@meta-harness/plugin-core': 'workspace:*',
+      zod: '^3.24.4'
     })
     expect(plugin.id).toBe('opencode-meta-harness')
   })
