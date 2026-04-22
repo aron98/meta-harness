@@ -1,0 +1,99 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      has-changesets: ${{ steps.changesets.outputs.hasChangesets }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.6.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - id: changesets
+        uses: changesets/action@v1
+        with:
+          commit: chore: version packages
+          title: chore: version packages
+          version: pnpm version-packages
+          createGithubReleases: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  detect-version-merge:
+    needs: version
+    if: needs.version.outputs.has-changesets == 'false'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should-tag: ${{ steps.detect.outputs.should-tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: detect
+        run: |
+          diff_output="$(git diff --name-status HEAD^ HEAD)"
+          printf '%s\n' "$diff_output"
+
+          consumed_changeset='false'
+          versioned_manifest='false'
+
+          if printf '%s\n' "$diff_output" | grep -Eq '^[ADRMTUXB]+[[:space:]]+\.changeset/.+\.md$'; then
+            consumed_changeset='true'
+          fi
+
+          if printf '%s\n' "$diff_output" | grep -Eq '^[ADRMTUXB]+[[:space:]]+(apps/cli|packages/core|packages/plugin-core|packages/fixtures|packages/plugins/opencode-meta-harness)/package\.json$'; then
+            versioned_manifest='true'
+          fi
+
+          if [ "$consumed_changeset" = 'true' ] && [ "$versioned_manifest" = 'true' ]; then
+            echo 'should-tag=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'should-tag=false' >> "$GITHUB_OUTPUT"
+          fi
+
+  tag:
+    needs:
+      - version
+      - detect-version-merge
+    if: needs.version.outputs.has-changesets == 'false' && needs.detect-version-merge.outputs.should-tag == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.6.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tag-packages
+      # Intentionally uses GITHUB_TOKEN through checkout's persisted credentials.
+      # Bot-auth tag pushes do not recurse into publish automation; manual workflow_dispatch publish is the only publish trigger.
+      - run: git push --tags
