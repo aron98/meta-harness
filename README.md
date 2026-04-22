@@ -63,6 +63,7 @@ For commands that accept structured input:
 - Architecture reference: [`docs/architecture/current-architecture.md`](./docs/architecture/current-architecture.md)
 - Command reference: [`docs/commands/README.md`](./docs/commands/README.md)
 - Full walkthrough: [`docs/usage/mvp-usage.md`](./docs/usage/mvp-usage.md)
+- OpenCode plugin install guide: [`packages/plugins/opencode-meta-harness/README.md`](./packages/plugins/opencode-meta-harness/README.md)
 
 ## Adapter boundary status
 
