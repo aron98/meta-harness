@@ -27,7 +27,8 @@ export {
 export { loadArtifactRecord, writeArtifactRecord } from './artifact-store';
 export { canonicalFixtureSchema, type CanonicalFixture } from './canonical-fixture-schema';
 export {
-  createTaskEndArtifact
+  createTaskEndArtifact,
+  type CreateTaskEndArtifactInput
 } from './create-task-end-artifact';
 export {
   createTaskStartContext,
@@ -53,7 +54,14 @@ export {
 export { canonicalFixtureJsonSchema, fixtureAuthoringJsonSchema } from './schema-documents';
 export { renderFixtureSummary } from './render-fixture-summary';
 export { parseSessionPacket, sessionPacketSchema, type SessionPacket } from './session-packet';
-export { prepareSessionPacket, type PrepareSessionPacketInput } from './prepare-session-packet';
+export {
+  prepareSessionPacket,
+  type PrepareSessionPacketInput,
+  type PrepareSessionPacketPolicyInput,
+  type PrepareSessionPacketRetrievalPolicyInput,
+  type PrepareSessionPacketRoutingPolicyInput,
+  type PrepareSessionPacketVerificationPolicyInput
+} from './prepare-session-packet';
 export {
   evaluatePacketBenchmarks,
   type EvaluatePacketBenchmark,

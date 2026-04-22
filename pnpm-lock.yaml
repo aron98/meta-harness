@@ -42,7 +42,20 @@ importers:
         specifier: workspace:*
         version: link:../core
 
-  packages/plugin: {}
+  packages/plugin-core:
+    dependencies:
+      '@meta-harness/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/plugins/opencode-meta-harness:
+    dependencies:
+      '@meta-harness/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@meta-harness/plugin-core':
+        specifier: workspace:*
+        version: link:../../plugin-core
 
 packages:
 

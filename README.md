@@ -16,8 +16,13 @@
 - `apps/cli` - user-facing CLI for the current MVP
 - `packages/core` - schemas, storage helpers, retrieval, packet prep, and evaluation logic
 - `packages/fixtures` - bundled benchmark fixtures and generated fixture inputs
-- `packages/plugin` - placeholder plugin adapter surface
+- `packages/plugin-core` - host-neutral adapter contract package with a thin `policyInput` seam for future retrieval, routing, and verification tuning; policy ownership still stays in `packages/core`
+- `packages/plugins/opencode-meta-harness` - OpenCode-specific thin adapter package, now able to parse OpenCode payloads, map them into the shared seam, and drive the shared lifecycle helpers
 - `docs` - usage docs and generated/reference material
+
+## Adapter observability status
+
+`packages/plugin-core` now also owns the first shared adapter storage helpers for runtime task-start, task-end, and compaction records, plus bounded adapter-event observability records. Adapter-event files live under `data/runtime/adapter-events/<host-id>/<repo-id>/<task-id>/<operation>.json` and capture hook-level execution metadata without duplicating full artifact or memory payloads.
 
 ## Install and verify
 
@@ -58,3 +63,7 @@ For commands that accept structured input:
 - Architecture reference: [`docs/architecture/current-architecture.md`](./docs/architecture/current-architecture.md)
 - Command reference: [`docs/commands/README.md`](./docs/commands/README.md)
 - Full walkthrough: [`docs/usage/mvp-usage.md`](./docs/usage/mvp-usage.md)
+
+## Adapter boundary status
+
+`packages/plugin-core` now exposes the first host-neutral adapter seam for future plugin packages. It defines a shared adapter contract, thin lifecycle/storage/observability helpers, and a small optional `policyInput` object with `retrieval`, `routing`, and `verification` sections. That input is still pass-through only: adapters can forward it, but policy behavior remains in `packages/core`.

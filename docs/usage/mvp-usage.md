@@ -8,7 +8,18 @@ This document covers the current shipped CLI walkthrough. It describes the `apps
 
 The shipped CLI also includes `build-fixture-artifacts` for generating `docs/generated` outputs, but that command is documented in `../commands/build-fixture-artifacts.md` rather than this walkthrough.
 
-If you need the current architecture view, including `TaskStartEvent`, `RuntimeTaskContext`, retrieval inspection, task-end artifact creation, and compaction helpers, see `../architecture/current-architecture.md`.
+If you need the current architecture view, including `TaskStartEvent`, `RuntimeTaskContext`, retrieval inspection, task-end artifact creation, compaction helpers, and the new host-neutral `packages/plugin-core` wrappers, see `../architecture/current-architecture.md`.
+
+## Current shared adapter seam
+
+The shipped walkthrough below still uses the CLI directly, but host adapters now have a shared host-neutral entry layer in `packages/plugin-core`:
+
+- `createHostSession()` wraps `packages/core` task-start orchestration
+- `createHostArtifact()` wraps task-end artifact creation
+- `inspectHostRetrieval()` wraps retrieval inspection on already ranked records
+- `compactHostSession()` wraps compaction summary creation
+
+Those helpers are now reused by the OpenCode adapter package and are intended to be reused by later Claude Code and Codex siblings under `packages/plugins/`. The optional `policyInput` seam passes through to `packages/core`, which still owns retrieval, routing, and verification behavior. Adapter observability records are written per operation under `data/runtime/adapter-events/<host-id>/<repo-id>/<task-id>/<operation>.json`.
 
 ## Prerequisites
 

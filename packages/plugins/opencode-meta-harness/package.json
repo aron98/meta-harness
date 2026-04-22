@@ -1,5 +1,5 @@
 {
-  "name": "@meta-harness/plugin",
+  "name": "@meta-harness/opencode-meta-harness",
   "version": "0.0.0",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -17,7 +17,11 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --dts --format esm,cjs --clean",
-    "test": "vitest run packages/plugin/test",
+    "test": "pnpm --dir ../../.. exec vitest run packages/plugins/opencode-meta-harness/test",
     "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@meta-harness/core": "workspace:*",
+    "@meta-harness/plugin-core": "workspace:*"
   }
 }

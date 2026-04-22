@@ -4,6 +4,7 @@ import {
   prepareSessionPacket,
   type ArtifactRecord,
   type MemoryRecord,
+  type PrepareSessionPacketPolicyInput,
   type PrepareSessionPacketInput,
   type SessionPacketRoute
 } from '../src/index';
@@ -147,5 +148,33 @@ describe('prepareSessionPacket', () => {
     expect(packet.verificationChecklist.join('\n')).toMatch(/pnpm build/i);
     expect(packet.selectedArtifactIds).toEqual(['artifact-build']);
     expect(packet.selectedMemoryIds).toEqual(['memory-build']);
+  });
+
+  it('accepts adapter policy input without changing the default packet behavior', () => {
+    const input = createInput('Implement a fix for the broken build and verify it.');
+    const policyInput: PrepareSessionPacketPolicyInput = {
+      retrieval: {
+        repoMatchWeight: 20,
+        recentHalfLifeDays: 30,
+        taskLocalMemoryBonus: 4
+      },
+      routing: {
+        taskTypeOrder: ['fix', 'verification'],
+        buildPromptMode: 'prefer-codegen'
+      },
+      verification: {
+        includeArtifactVerificationCommands: true,
+        includeMemoryCommandHints: false,
+        requirePromptClarificationOnUnclear: true
+      }
+    };
+
+    expect(prepareSessionPacket({ ...input, policyInput })).toEqual(prepareSessionPacket(input));
+  });
+
+  it('preserves current behavior when policy input is omitted', () => {
+    const input = createInput('Implement a fix for the broken build and verify it.');
+
+    expect(prepareSessionPacket({ ...input, policyInput: undefined })).toEqual(prepareSessionPacket(input));
   });
 });
