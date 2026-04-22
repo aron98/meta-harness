@@ -1,5 +1,6 @@
 import type {
   HostCompactionInput,
+  InspectHostRetrievalInput,
   HostRetrievalInspectionInput,
   HostTaskEndInput,
   HostTaskStartInput
@@ -8,9 +9,12 @@ import type {
 import type {
   OpenCodeCompactionPayload,
   OpenCodeInspectRetrievalPayload,
+  OpenCodeToolExecuteRetrievalSignal,
   OpenCodeTaskEndPayload,
   OpenCodeTaskStartPayload
 } from './opencode-hook-payload'
+
+type OpenCodeRetrievalTaskContext = Pick<OpenCodeTaskStartPayload, 'repoId' | 'taskId' | 'taskText' | 'taskType' | 'policyInput'>
 
 export function mapOpenCodeTaskStartPayload(input: OpenCodeTaskStartPayload): HostTaskStartInput {
   return {
@@ -32,6 +36,17 @@ export function mapOpenCodeTaskEndPayload(input: OpenCodeTaskEndPayload): HostTa
 
 export function mapOpenCodeInspectRetrievalPayload(input: OpenCodeInspectRetrievalPayload): HostRetrievalInspectionInput {
   return mapOpenCodeTaskStartPayload(input)
+}
+
+export function mapOpenCodeToolExecuteRetrievalSignal(
+  _signal: OpenCodeToolExecuteRetrievalSignal,
+  task: OpenCodeRetrievalTaskContext
+): HostRetrievalInspectionInput & InspectHostRetrievalInput {
+  return {
+    ...mapOpenCodeTaskStartPayload(task),
+    rankedMemories: [],
+    rankedArtifacts: []
+  }
 }
 
 export function mapOpenCodeCompactionPayload(input: OpenCodeCompactionPayload): HostCompactionInput {

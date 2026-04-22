@@ -7,6 +7,7 @@ This directory documents the current local repo state for `code/`.
 - [Usage guide](./usage/mvp-usage.md) for the shipped CLI walkthrough commands in `apps/cli`, including the Phase 2 runtime bridge surface
 - [Current architecture](./architecture/current-architecture.md) for the package boundaries, record schemas, retrieval pipeline, runtime bridge helpers, evaluation fixtures, and plugin bootstrap layout
 - [Command reference](./commands/README.md) for one page per shipped CLI command
+- [OpenCode plugin install guide](../packages/plugins/opencode-meta-harness/README.md) for the canonical local setup and future npm config shape
 
 ## What these docs cover today
 

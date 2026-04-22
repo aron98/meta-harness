@@ -18,6 +18,25 @@ export type OpenCodeTaskEndPayload = OpenCodeTaskStartPayload & {
 
 export type OpenCodeInspectRetrievalPayload = OpenCodeTaskStartPayload
 
+export type OpenCodeRetrievalLikeToolName = 'read' | 'grep' | 'glob' | 'webfetch'
+
+export type OpenCodeToolExecuteRetrievalSignal = {
+  sessionID: string
+  callID?: string
+  toolName: OpenCodeRetrievalLikeToolName
+  arguments: unknown
+}
+
+type OpenCodeToolExecuteBeforeInput = {
+  sessionID?: string
+  callID?: string
+  tool?: string
+}
+
+type OpenCodeToolExecuteBeforeOutput = {
+  args?: unknown
+}
+
 export type OpenCodeCompactionPayload = OpenCodeBasePayload & {
   suggestedRoute: string
 }
@@ -48,6 +67,26 @@ export function parseOpenCodeInspectRetrievalPayload(input: unknown): OpenCodeIn
   return parseOpenCodeTaskStartPayload(input)
 }
 
+export function parseOpenCodeToolExecuteRetrievalSignal(
+  input: unknown,
+  output: unknown
+): OpenCodeToolExecuteRetrievalSignal | undefined {
+  const record = asRecord(input, 'OpenCode tool.execute payload must be an object.') as OpenCodeToolExecuteBeforeInput
+  const result = asRecord(output, 'OpenCode tool.execute output payload must be an object.') as OpenCodeToolExecuteBeforeOutput
+  const toolName = asRetrievalLikeToolName(record.tool)
+
+  if (!toolName) {
+    return undefined
+  }
+
+  return {
+    sessionID: asNonEmptyString(record.sessionID, 'sessionID'),
+    callID: typeof record.callID === 'string' && record.callID.trim().length > 0 ? record.callID : undefined,
+    toolName,
+    arguments: result.args
+  }
+}
+
 export function parseOpenCodeCompactionPayload(input: unknown): OpenCodeCompactionPayload {
   const record = asRecord(input, 'OpenCode compact-session payload must be an object.')
 
@@ -66,6 +105,18 @@ function asRecord(value: unknown, message: string): Record<string, unknown> {
   }
 
   return { ...value }
+}
+
+function asRetrievalLikeToolName(value: unknown): OpenCodeRetrievalLikeToolName | undefined {
+  switch (value) {
+    case 'read':
+    case 'grep':
+    case 'glob':
+    case 'webfetch':
+      return value
+    default:
+      return undefined
+  }
 }
 
 function asNonEmptyString(value: unknown, fieldName: string): string {
