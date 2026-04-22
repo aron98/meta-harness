@@ -12,7 +12,7 @@ describe('OpenCode plugin host integration', () => {
     const hooks = await plugin.server({ project: { id: 'repo-alpha' }, directory: '/tmp/repo-alpha' })
 
     expect(plugin.id).toBe('opencode-meta-harness')
-    expect(hooks.chat?.message).toBeTypeOf('function')
+    expect(hooks['chat.message']).toBeTypeOf('function')
   })
 
   it('derives a task-start call from chat.message in shadow mode', async () => {
@@ -22,7 +22,7 @@ describe('OpenCode plugin host integration', () => {
     const plugin = createOpenCodePlugin({ createAdapter, now: () => '2026-04-22T15:00:00.000Z' })
     const hooks = await plugin.server({ project: { id: 'repo-alpha' }, directory: '/tmp/repo-alpha' })
 
-    await hooks.chat?.message?.(
+    await hooks['chat.message']?.(
       { sessionID: 'session-001', messageID: 'message-001' },
       { message: 'Please inspect the new OpenCode plugin integration boundary.' }
     )
@@ -48,7 +48,7 @@ describe('OpenCode plugin host integration', () => {
     const plugin = createOpenCodePlugin({ createAdapter, now: () => '2026-04-22T15:05:00.000Z' })
     const hooks = await plugin.server({ project: { name: 'repo-beta' }, directory: '/tmp/repo-beta' })
 
-    await hooks.chat?.message?.(
+    await hooks['chat.message']?.(
       { sessionID: 'session-002' },
       { parts: [{ text: 'Inspect host integration' }, { content: 'and keep adapters thin.' }] }
     )
@@ -74,7 +74,7 @@ describe('OpenCode plugin host integration', () => {
     const hooks = await plugin.server({ project: { id: 'repo-alpha' }, directory: '/tmp/repo-alpha' })
 
     await expect(
-      hooks.chat?.message?.(
+      hooks['chat.message']?.(
         { sessionID: 'session-003', messageID: 'message-003' },
         { message: 'This should not break host chat flow.' }
       )
