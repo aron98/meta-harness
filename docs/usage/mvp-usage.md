@@ -4,7 +4,7 @@ This walkthrough uses the real built CLI contract and a temporary local data sto
 
 ## Scope of this guide
 
-This document covers the current Phase 1 CLI MVP walkthrough only. It describes the shipped `apps/cli` workflow for logging artifacts, promoting memory, querying history, preparing session packets, and evaluating packet quality.
+This document covers the current shipped CLI walkthrough. It describes the `apps/cli` workflow for logging artifacts, promoting memory, querying history, preparing session packets, simulating runtime task lifecycle hooks, explicitly inspecting retrieval, compacting active task state, and evaluating packet quality.
 
 The shipped CLI also includes `build-fixture-artifacts` for generating `docs/generated` outputs, but that command is documented in `../commands/build-fixture-artifacts.md` rather than this walkthrough.
 
@@ -120,7 +120,84 @@ In code, the successful command result also carries a `packet` object containing
 - `suggestedRoute`: `verify`
 - `verificationChecklist`: checklist items derived from task type plus retrieved evidence
 
-## 5. Evaluate the packet pipeline
+## 5. Start runtime task context
+
+```bash
+cat > "$DATA_ROOT/task-start.json" <<'EOF'
+{"packetId":"packet-release-build-001","repoId":"repo-alpha","taskId":"task-release-build-002","prompt":"Verify the release build and report whether it passes with evidence.","routeHints":["verify"],"maxMemories":2,"maxArtifacts":2,"referenceTime":"2026-04-21T12:10:00.000Z"}
+EOF
+node apps/cli/dist/index.js task-start --data-root "$DATA_ROOT" --input-file "$DATA_ROOT/task-start.json"
+```
+
+Expected output:
+
+```text
+Prepared runtime context packet-release-build-001 for task task-release-build-002 (verification/verify)
+Selected 1 memories and 1 artifacts
+```
+
+This writes `data/runtime/task-start/repo-alpha/task-release-build-002.json` under `$DATA_ROOT`.
+
+## 6. Inspect retrieval explicitly
+
+```bash
+cat > "$DATA_ROOT/inspect.json" <<'EOF'
+{"repoId":"repo-alpha","taskType":"verification","tags":["verify","build","release"],"preferredOutcome":"success","referenceTime":"2026-04-21T12:10:00.000Z","maxMemories":1,"maxArtifacts":1}
+EOF
+node apps/cli/dist/index.js inspect-retrieval --data-root "$DATA_ROOT" --input-file "$DATA_ROOT/inspect.json"
+```
+
+Expected output starts with:
+
+```text
+Selected memories:
+- memory-release-build-001
+Selected artifacts:
+- artifact-release-build-001
+```
+
+The full human-readable lines also include the scored retrieval reasons.
+
+## 7. Capture runtime task completion
+
+```bash
+cat > "$DATA_ROOT/task-end.json" <<'EOF'
+{"id":"task-end-001","repoId":"repo-alpha","taskId":"task-release-build-002","taskType":"verification","taskText":"Verify the release build and report whether it passes with evidence.","promptSummary":"Verified the release build and captured the result with supporting evidence.","selectedMemoryIds":["memory-release-build-001"],"selectedArtifactIds":["artifact-release-build-001"],"suggestedRoute":"verify","verificationState":{"status":"passed","checklist":["Capture the exact verification command results and status.","Run pnpm build.","Run pnpm test."],"completedSteps":["Capture the exact verification command results and status.","Run pnpm build.","Run pnpm test."]},"unresolvedQuestions":[],"filesInspected":["package.json","pnpm-workspace.yaml"],"filesChanged":[],"commands":["pnpm build","pnpm test"],"diagnostics":["Build completed without TypeScript errors.","Tests passed in the release workspace."],"outcome":"success","tags":["verify","build","release"],"startedAt":"2026-04-21T12:10:00.000Z","endedAt":"2026-04-21T12:14:12.000Z"}
+EOF
+node apps/cli/dist/index.js task-end --data-root "$DATA_ROOT" --input-file "$DATA_ROOT/task-end.json"
+```
+
+Expected output:
+
+```text
+Captured task end task-end-001 as artifact task-end-001 (success)
+```
+
+This writes:
+
+- `data/runtime/task-end/repo-alpha/task-release-build-002.json`
+- `data/artifacts/repo-alpha/task-end-001.json`
+
+## 8. Compact active task state
+
+```bash
+cat > "$DATA_ROOT/compaction.json" <<'EOF'
+{"repoId":"repo-alpha","taskId":"task-release-build-002","taskText":"Verify the release build and report whether it passes with evidence.","selectedMemoryIds":["memory-release-build-001","memory-release-build-002","memory-release-build-003"],"selectedArtifactIds":["artifact-release-build-001","artifact-release-build-002"],"suggestedRoute":"verify","verificationState":{"status":"passed","checklist":["Capture the exact verification command results and status.","Run pnpm build.","Run pnpm test."],"completedSteps":["Capture the exact verification command results and status.","Run pnpm build."]},"unresolvedQuestions":["Should the smoke test run against staging or production?"],"compactedAt":"2026-04-21T12:15:00.000Z","startedAt":"2026-04-21T12:10:00.000Z","endedAt":"2026-04-21T12:14:12.000Z"}
+EOF
+node apps/cli/dist/index.js compact-session --data-root "$DATA_ROOT" --input-file "$DATA_ROOT/compaction.json"
+```
+
+Expected output:
+
+```text
+Compacted task task-release-build-002 (verify) with 3 memory ids and 2 artifact ids
+```
+
+This writes `data/runtime/compaction/repo-alpha/task-release-build-002.json` under `$DATA_ROOT`.
+
+Memory promotion is still explicit. The runtime bridge commands do not create `MemoryRecord`s automatically.
+
+## 9. Evaluate the packet pipeline
 
 ```bash
 node apps/cli/dist/index.js evaluate-packet --data-root "$DATA_ROOT"
