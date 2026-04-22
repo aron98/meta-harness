@@ -6,6 +6,33 @@ import { buildVerificationChecklist } from './verification-checklist';
 import { parseSessionPacket, type SessionPacket, type SessionPacketRoute } from './session-packet';
 import type { MemoryRecord } from './memory-record';
 
+export type PrepareSessionPacketRetrievalPolicyInput = {
+  repoMatchWeight?: number;
+  tagOverlapWeight?: number;
+  recentMaxBonus?: number;
+  recentHalfLifeDays?: number;
+  taskTypeWeight?: number;
+  outcomeWeight?: number;
+  taskLocalMemoryBonus?: number;
+};
+
+export type PrepareSessionPacketRoutingPolicyInput = {
+  taskTypeOrder?: string[];
+  buildPromptMode?: string;
+};
+
+export type PrepareSessionPacketVerificationPolicyInput = {
+  includeArtifactVerificationCommands?: boolean;
+  includeMemoryCommandHints?: boolean;
+  requirePromptClarificationOnUnclear?: boolean;
+};
+
+export type PrepareSessionPacketPolicyInput = {
+  retrieval?: PrepareSessionPacketRetrievalPolicyInput;
+  routing?: PrepareSessionPacketRoutingPolicyInput;
+  verification?: PrepareSessionPacketVerificationPolicyInput;
+};
+
 export type PrepareSessionPacketInput = {
   packetId: string;
   repoId: string;
@@ -17,6 +44,7 @@ export type PrepareSessionPacketInput = {
   maxMemories?: number;
   maxArtifacts?: number;
   preferredOutcome?: ArtifactOutcome;
+  policyInput?: PrepareSessionPacketPolicyInput;
   referenceTime: string;
 };
 
