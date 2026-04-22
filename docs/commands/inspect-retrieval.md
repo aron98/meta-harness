@@ -33,9 +33,9 @@ node apps/cli/dist/index.js inspect-retrieval --data-root ./tmp/store --input-fi
 
 ```text
 Selected memories:
-- memory-release-build-001 score=6 reasons=repo-match, tag-overlap, recent (memory)
+- memory-release-build-001 score=19.99950396825397 reasons=repo-match, tag-overlap, recent (memory)
 Selected artifacts:
-- artifact-release-build-001 score=10 reasons=repo-match, task-type-match, tag-overlap, outcome-match, recent (artifact)
+- artifact-release-build-001 score=34.99900793650794 reasons=repo-match, tag-overlap, recent, task-type-match, outcome-match (artifact)
 ```
 
 If malformed stored files are present, warning lines are printed before the selected record blocks.
