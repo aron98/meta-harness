@@ -16,7 +16,8 @@
     "paths": {
       "@meta-harness/core": ["packages/core/src/index.ts"],
       "@meta-harness/fixtures": ["packages/fixtures/src/index.ts"],
-      "@meta-harness/plugin": ["packages/plugin/src/index.ts"]
+      "@meta-harness/plugin-core": ["packages/plugin-core/src/index.ts"],
+      "@meta-harness/opencode-meta-harness": ["packages/plugins/opencode-meta-harness/src/index.ts"]
     },
     "types": ["node", "vitest/globals"]
   }
