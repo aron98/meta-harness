@@ -48,10 +48,12 @@ The mapping layer only renames and forwards values. The adapter factory then com
 
 The package now also exports a default OpenCode plugin module with id `opencode-meta-harness`.
 
-That plugin currently wires one real host hook:
+That plugin currently wires these real host hooks:
 
 - `chat.message` → derive a local task-start request → call the thin adapter in shadow mode
+- `event` on `session.status` with `idle` → derive a best-effort local task-end request → call the thin adapter in shadow mode
+- `event` on `session.idle` → compatibility fallback for the same best-effort local task-end request
 
-This keeps the host-integration slice narrow while proving the package can be loaded as an actual OpenCode plugin module rather than only as a local library.
+This still keeps the host-integration slice narrow while proving the package can be loaded as an actual OpenCode plugin module rather than only as a local library.
 
 Later OpenCode adapter work should keep calling those shared `packages/plugin-core` helpers rather than inventing new host-local storage schemas.
