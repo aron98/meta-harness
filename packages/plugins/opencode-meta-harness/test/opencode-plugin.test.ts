@@ -83,6 +83,141 @@ describe('OpenCode plugin host integration', () => {
     expect(startTask).toHaveBeenCalledTimes(1)
   })
 
+  it('routes retrieval-like tool.execute.before hooks into adapter.inspectRetrieval using the tracked task context', async () => {
+    const startTask = vi.fn().mockResolvedValue({
+      filePath: '/tmp/store/data/runtime/task-start/repo-alpha/message-010.json',
+      observabilityFilePath: '/tmp/store/data/runtime/adapter-events/opencode/repo-alpha/message-010/task-start.json',
+      result: {
+        taskStart: {
+          startedAt: '2026-04-22T15:12:00.000Z',
+          verificationState: { status: 'pending', checklist: [], completedSteps: [] },
+          unresolvedQuestions: []
+        },
+        context: {
+          taskId: 'message-010',
+          packet: {
+            taskType: 'analysis',
+            suggestedRoute: 'explore',
+            selectedMemoryIds: [],
+            selectedArtifactIds: []
+          }
+        }
+      }
+    })
+    const inspectRetrieval = vi.fn().mockResolvedValue(undefined)
+    const createAdapter = vi.fn().mockReturnValue({ startTask, inspectRetrieval })
+
+    const plugin = createOpenCodePlugin({ createAdapter, now: () => '2026-04-22T15:12:00.000Z' })
+    const hooks = await plugin.server({ project: { id: 'repo-alpha' }, directory: '/tmp/repo-alpha' })
+
+    await hooks['chat.message']?.(
+      { sessionID: 'session-020', messageID: 'message-010' },
+      { message: 'Inspect retrieval hook wiring.' }
+    )
+    await hooks['tool.execute.before']?.({
+      sessionID: 'session-020',
+      callID: 'call-read',
+      tool: 'read'
+    }, {
+      args: { filePath: '/repo/src/index.ts', offset: 1, limit: 50 }
+    })
+
+    expect(inspectRetrieval).toHaveBeenCalledWith({
+      repoId: 'repo-alpha',
+      taskId: 'message-010',
+      taskText: 'Inspect retrieval hook wiring.',
+      taskType: 'analysis',
+      policyInput: undefined,
+      rankedMemories: [],
+      rankedArtifacts: []
+    })
+  })
+
+  it('ignores unrelated tool.execute.before hooks for retrieval inspection', async () => {
+    const startTask = vi.fn().mockResolvedValue({
+      filePath: '/tmp/store/data/runtime/task-start/repo-alpha/message-011.json',
+      observabilityFilePath: '/tmp/store/data/runtime/adapter-events/opencode/repo-alpha/message-011/task-start.json',
+      result: {
+        taskStart: {
+          startedAt: '2026-04-22T15:13:00.000Z',
+          verificationState: { status: 'pending', checklist: [], completedSteps: [] },
+          unresolvedQuestions: []
+        },
+        context: {
+          taskId: 'message-011',
+          packet: {
+            taskType: 'analysis',
+            suggestedRoute: 'explore',
+            selectedMemoryIds: [],
+            selectedArtifactIds: []
+          }
+        }
+      }
+    })
+    const inspectRetrieval = vi.fn().mockResolvedValue(undefined)
+    const createAdapter = vi.fn().mockReturnValue({ startTask, inspectRetrieval })
+
+    const plugin = createOpenCodePlugin({ createAdapter, now: () => '2026-04-22T15:13:00.000Z' })
+    const hooks = await plugin.server({ project: { id: 'repo-alpha' }, directory: '/tmp/repo-alpha' })
+
+    await hooks['chat.message']?.(
+      { sessionID: 'session-021', messageID: 'message-011' },
+      { message: 'Inspect unrelated tool hook wiring.' }
+    )
+    await hooks['tool.execute.before']?.({
+      sessionID: 'session-021',
+      callID: 'call-bash',
+      tool: 'bash'
+    }, {
+      args: { command: 'pnpm test' }
+    })
+
+    expect(inspectRetrieval).not.toHaveBeenCalled()
+  })
+
+  it('swallows retrieval inspection failures so tool hooks remain observational', async () => {
+    const startTask = vi.fn().mockResolvedValue({
+      filePath: '/tmp/store/data/runtime/task-start/repo-alpha/message-012.json',
+      observabilityFilePath: '/tmp/store/data/runtime/adapter-events/opencode/repo-alpha/message-012/task-start.json',
+      result: {
+        taskStart: {
+          startedAt: '2026-04-22T15:14:00.000Z',
+          verificationState: { status: 'pending', checklist: [], completedSteps: [] },
+          unresolvedQuestions: []
+        },
+        context: {
+          taskId: 'message-012',
+          packet: {
+            taskType: 'analysis',
+            suggestedRoute: 'explore',
+            selectedMemoryIds: [],
+            selectedArtifactIds: []
+          }
+        }
+      }
+    })
+    const inspectRetrieval = vi.fn().mockRejectedValue(new Error('adapter unavailable'))
+    const createAdapter = vi.fn().mockReturnValue({ startTask, inspectRetrieval })
+
+    const plugin = createOpenCodePlugin({ createAdapter, now: () => '2026-04-22T15:14:00.000Z' })
+    const hooks = await plugin.server({ project: { id: 'repo-alpha' }, directory: '/tmp/repo-alpha' })
+
+    await hooks['chat.message']?.(
+      { sessionID: 'session-022', messageID: 'message-012' },
+      { message: 'Inspect retrieval failure handling.' }
+    )
+
+    await expect(hooks['tool.execute.before']?.({
+      sessionID: 'session-022',
+      callID: 'call-webfetch',
+      tool: 'webfetch'
+    }, {
+      args: { url: 'https://example.com', format: 'markdown' }
+    })).resolves.toBeUndefined()
+
+    expect(inspectRetrieval).toHaveBeenCalledTimes(1)
+  })
+
   it('derives a shadow task-end call from session.status idle using the tracked session task', async () => {
     const startTask = vi.fn().mockResolvedValue({
       filePath: '/tmp/store/data/runtime/task-start/repo-alpha/message-001.json',

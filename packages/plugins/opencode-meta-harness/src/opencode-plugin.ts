@@ -3,6 +3,12 @@ import { basename } from 'node:path'
 import type { SessionPacketRoute, TaskType } from '@meta-harness/core'
 
 import { createOpenCodeAdapter } from './create-opencode-adapter'
+import {
+  mapOpenCodeToolExecuteRetrievalSignal
+} from './opencode-event-mappers'
+import {
+  parseOpenCodeToolExecuteRetrievalSignal
+} from './opencode-hook-payload'
 
 type OpenCodePluginInput = {
   project?: {
@@ -25,7 +31,18 @@ type OpenCodeChatMessageOutput = {
 type OpenCodeHooks = {
   'chat.message'?: (input: OpenCodeChatMessageInput, output: OpenCodeChatMessageOutput) => Promise<void>
   event?: (input: OpenCodeEventInput) => Promise<void>
+  'tool.execute.before'?: (input: OpenCodeToolExecuteBeforeInput, output: OpenCodeToolExecuteBeforeOutput) => Promise<void>
   'experimental.session.compacting'?: (input: OpenCodeCompactingInput, output: OpenCodeCompactingOutput) => Promise<void>
+}
+
+type OpenCodeToolExecuteBeforeInput = {
+  sessionID?: string
+  callID?: string
+  tool?: string
+}
+
+type OpenCodeToolExecuteBeforeOutput = {
+  args?: unknown
 }
 
 type OpenCodeSessionStatusPayload = {
@@ -183,6 +200,31 @@ export function createOpenCodePlugin(dependencies: OpenCodePluginFactoryDependen
             return
           } finally {
             activeTasks.delete(sessionID)
+          }
+        },
+        'tool.execute.before': async (toolInput, toolOutput) => {
+          const signal = parseOpenCodeToolExecuteRetrievalSignal(toolInput, toolOutput)
+          if (!signal) {
+            return
+          }
+
+          const tracked = activeTasks.get(signal.sessionID)
+          if (!tracked) {
+            return
+          }
+
+          try {
+            await adapter.inspectRetrieval(
+              mapOpenCodeToolExecuteRetrievalSignal(signal, {
+                repoId: tracked.repoId,
+                taskId: tracked.taskId,
+                taskText: tracked.taskText,
+                taskType: tracked.taskType,
+                policyInput: undefined
+              })
+            )
+          } catch {
+            return
           }
         },
         'experimental.session.compacting': async (compactingInput, compactingOutput) => {
