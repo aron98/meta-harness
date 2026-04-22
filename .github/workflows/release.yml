@@ -34,9 +34,9 @@ jobs:
       - id: changesets
         uses: changesets/action@v1
         with:
-          commit: chore: version packages
-          title: chore: version packages
-          version: pnpm version-packages
+          commit: "chore: version packages"
+          title: "chore: version packages"
+          version: "pnpm version-packages"
           createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
