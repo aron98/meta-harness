@@ -12,7 +12,11 @@ export function createOpenCodePluginPlaceholder() {
   } as const;
 }
 
+export { createOpenCodePlugin } from './opencode-plugin'
+export type { OpenCodePluginModule, OpenCodePluginOptions } from './opencode-plugin'
 export * from './create-opencode-adapter'
 export * from './opencode-observability'
 export * from './opencode-hook-payload'
 export * from './opencode-event-mappers'
+
+export { default } from './opencode-plugin'

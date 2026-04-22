@@ -35,7 +35,7 @@ describe('adapter observability', () => {
       createdAt: '2026-04-21T12:00:00.000Z'
     })
 
-    expect(filePath).toBe(join(dataRoot, 'data/runtime/adapter-events/opencode/repo-a/task-001.json'))
+    expect(filePath).toBe(join(dataRoot, 'data/runtime/adapter-events/opencode/repo-a/task-001/task-start.json'))
     await expect(readFile(filePath, 'utf8')).resolves.toContain('task:start')
     await expect(readFile(filePath, 'utf8')).resolves.toContain('warning: skipped memory record ignored.json')
   })

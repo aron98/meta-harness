@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { OPENCODE_HOST_ID, OPENCODE_META_HARNESS_PACKAGE_NAME, createOpenCodeAdapter } from '../src/index';
+import plugin, { OPENCODE_HOST_ID, OPENCODE_META_HARNESS_PACKAGE_NAME, createOpenCodeAdapter } from '../src/index';
 
 describe('OpenCode meta-harness plugin package public surface', () => {
   it('exports the workspace package name', () => {
@@ -18,4 +18,9 @@ describe('OpenCode meta-harness plugin package public surface', () => {
       pluginCorePackageName: '@meta-harness/plugin-core'
     })
   });
+
+  it('exports a default OpenCode plugin module', () => {
+    expect(plugin.id).toBe('opencode-meta-harness')
+    expect(plugin.server).toBeTypeOf('function')
+  })
 });
