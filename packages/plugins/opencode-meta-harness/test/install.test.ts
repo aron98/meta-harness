@@ -19,7 +19,7 @@ describe('OpenCode meta-harness installer', () => {
     const cwd = await makeTempProject()
     const home = join(cwd, 'home')
 
-    const result = await installOpenCodeMetaHarness({ cwd, home })
+    const result = await installOpenCodeMetaHarness({ cwd, home, env: {} })
 
     const configPath = join(home, '.config', 'opencode', 'opencode.json')
     const dataRoot = join(home, '.local', 'share', 'opencode-meta-harness')
@@ -51,7 +51,7 @@ describe('OpenCode meta-harness installer', () => {
       plugin: ['other-plugin', '@meta-harness/opencode-meta-harness']
     }, null, 2), 'utf8')
 
-    await installOpenCodeMetaHarness({ cwd, home })
+    await installOpenCodeMetaHarness({ cwd, home, env: {} })
 
     const dataRoot = join(home, '.local', 'share', 'opencode-meta-harness')
     await expect(readJson(configPath)).resolves.toEqual({
@@ -76,7 +76,7 @@ describe('OpenCode meta-harness installer', () => {
       ]
     }, null, 2), 'utf8')
 
-    await installOpenCodeMetaHarness({ cwd, home })
+    await installOpenCodeMetaHarness({ cwd, home, env: {} })
 
     const dataRoot = join(home, '.local', 'share', 'opencode-meta-harness')
     await expect(readJson(configPath)).resolves.toEqual({
@@ -113,7 +113,7 @@ describe('OpenCode meta-harness installer', () => {
     const cwd = await makeTempProject()
     const home = join(cwd, 'home')
 
-    const result = await installOpenCodeMetaHarness({ cwd, home, global: true })
+    const result = await installOpenCodeMetaHarness({ cwd, home, global: true, env: {} })
 
     const configPath = join(home, '.config', 'opencode', 'opencode.json')
     const dataRoot = join(home, '.local', 'share', 'opencode-meta-harness')
@@ -129,7 +129,7 @@ describe('OpenCode meta-harness installer', () => {
     const relativeCwd = relative(process.cwd(), absoluteCwd)
     const relativeHome = relative(process.cwd(), join(absoluteCwd, 'home'))
 
-    const result = await installOpenCodeMetaHarness({ cwd: relativeCwd, home: relativeHome })
+    const result = await installOpenCodeMetaHarness({ cwd: relativeCwd, home: relativeHome, env: {} })
 
     const configPath = resolve(relativeHome, '.config', 'opencode', 'opencode.json')
     const dataRoot = resolve(relativeHome, '.local', 'share', 'opencode-meta-harness')
@@ -174,7 +174,7 @@ describe('OpenCode meta-harness installer', () => {
     await chmod(configDir, 0o500)
 
     try {
-      await expect(installOpenCodeMetaHarness({ cwd, home })).rejects.toThrow()
+      await expect(installOpenCodeMetaHarness({ cwd, home, env: {} })).rejects.toThrow()
       expect((await stat(dataRoot)).isDirectory()).toBe(true)
     } finally {
       await chmod(configDir, 0o700)
@@ -188,7 +188,7 @@ describe('OpenCode meta-harness installer', () => {
     await mkdir(join(home, '.config', 'opencode'), { recursive: true })
     await writeFile(configPath, '{ invalid json', 'utf8')
 
-    await expect(installOpenCodeMetaHarness({ cwd, home })).rejects.toThrow(
+    await expect(installOpenCodeMetaHarness({ cwd, home, env: {} })).rejects.toThrow(
       `Could not parse OpenCode config at ${configPath}`
     )
     await expect(readFile(configPath, 'utf8')).resolves.toBe('{ invalid json')

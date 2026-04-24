@@ -27,7 +27,8 @@ describe('OpenCode meta-harness CLI', () => {
     const result = await run(['install'], { log: output.log }, {
       error: output.error,
       cwd,
-      home
+      home,
+      env: {}
     })
 
     const dataRoot = join(home, '.local', 'share', 'opencode-meta-harness')
