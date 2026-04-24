@@ -15,13 +15,14 @@ async function readJson(filePath: string) {
 }
 
 describe('OpenCode meta-harness installer', () => {
-  it('creates project-local OpenCode config and data directory by default', async () => {
+  it('creates global OpenCode config and user data directory by default', async () => {
     const cwd = await makeTempProject()
+    const home = join(cwd, 'home')
 
-    const result = await installOpenCodeMetaHarness({ cwd, home: join(cwd, 'home') })
+    const result = await installOpenCodeMetaHarness({ cwd, home })
 
-    const configPath = join(cwd, '.opencode', 'opencode.json')
-    const dataRoot = join(cwd, '.local', 'share', 'opencode-meta-harness')
+    const configPath = join(home, '.config', 'opencode', 'opencode.json')
+    const dataRoot = join(home, '.local', 'share', 'opencode-meta-harness')
     expect((await stat(dataRoot)).isDirectory()).toBe(true)
     await expect(readJson(configPath)).resolves.toEqual({
       $schema: 'https://opencode.ai/config.json',
@@ -41,17 +42,18 @@ describe('OpenCode meta-harness installer', () => {
 
   it('preserves existing config keys and replaces string plugin entries with the dataRoot tuple', async () => {
     const cwd = await makeTempProject()
-    const configPath = join(cwd, '.opencode', 'opencode.json')
-    await mkdir(join(cwd, '.opencode'), { recursive: true })
+    const home = join(cwd, 'home')
+    const configPath = join(home, '.config', 'opencode', 'opencode.json')
+    await mkdir(join(home, '.config', 'opencode'), { recursive: true })
     await writeFile(configPath, JSON.stringify({
       $schema: 'https://example.com/custom-opencode-schema.json',
       theme: 'system',
       plugin: ['other-plugin', '@meta-harness/opencode-meta-harness']
     }, null, 2), 'utf8')
 
-    await installOpenCodeMetaHarness({ cwd, home: join(cwd, 'home') })
+    await installOpenCodeMetaHarness({ cwd, home })
 
-    const dataRoot = join(cwd, '.local', 'share', 'opencode-meta-harness')
+    const dataRoot = join(home, '.local', 'share', 'opencode-meta-harness')
     await expect(readJson(configPath)).resolves.toEqual({
       $schema: 'https://example.com/custom-opencode-schema.json',
       theme: 'system',
@@ -64,8 +66,9 @@ describe('OpenCode meta-harness installer', () => {
 
   it('updates an existing tuple entry without adding duplicates', async () => {
     const cwd = await makeTempProject()
-    const configPath = join(cwd, '.opencode', 'opencode.json')
-    await mkdir(join(cwd, '.opencode'), { recursive: true })
+    const home = join(cwd, 'home')
+    const configPath = join(home, '.config', 'opencode', 'opencode.json')
+    await mkdir(join(home, '.config', 'opencode'), { recursive: true })
     await writeFile(configPath, JSON.stringify({
       plugin: [
         ['@meta-harness/opencode-meta-harness', { dataRoot: '/old/path', repoId: 'repo-alpha' }],
@@ -73,9 +76,9 @@ describe('OpenCode meta-harness installer', () => {
       ]
     }, null, 2), 'utf8')
 
-    await installOpenCodeMetaHarness({ cwd, home: join(cwd, 'home') })
+    await installOpenCodeMetaHarness({ cwd, home })
 
-    const dataRoot = join(cwd, '.local', 'share', 'opencode-meta-harness')
+    const dataRoot = join(home, '.local', 'share', 'opencode-meta-harness')
     await expect(readJson(configPath)).resolves.toEqual({
       plugin: [
         ['@meta-harness/opencode-meta-harness', { dataRoot, repoId: 'repo-alpha' }]
@@ -83,7 +86,7 @@ describe('OpenCode meta-harness installer', () => {
     })
   })
 
-  it('uses XDG OpenCode config and data paths for global installs', async () => {
+  it('uses XDG OpenCode config and data paths by default', async () => {
     const cwd = await makeTempProject()
     const home = join(cwd, 'home')
     const xdgConfigHome = join(cwd, 'xdg-config')
@@ -92,7 +95,6 @@ describe('OpenCode meta-harness installer', () => {
     const result = await installOpenCodeMetaHarness({
       cwd,
       home,
-      global: true,
       env: { XDG_CONFIG_HOME: xdgConfigHome, XDG_DATA_HOME: xdgDataHome }
     })
 
@@ -107,15 +109,30 @@ describe('OpenCode meta-harness installer', () => {
     expect(result.dataRoot).toBe(dataRoot)
   })
 
-  it('resolves injected relative cwd and home paths to absolute local install paths', async () => {
+  it('keeps --global as a no-op alias for the default global install', async () => {
+    const cwd = await makeTempProject()
+    const home = join(cwd, 'home')
+
+    const result = await installOpenCodeMetaHarness({ cwd, home, global: true })
+
+    const configPath = join(home, '.config', 'opencode', 'opencode.json')
+    const dataRoot = join(home, '.local', 'share', 'opencode-meta-harness')
+    expect(result).toMatchObject({ configPath, dataRoot })
+    await expect(readJson(configPath)).resolves.toEqual({
+      $schema: 'https://opencode.ai/config.json',
+      plugin: [['@meta-harness/opencode-meta-harness', { dataRoot }]]
+    })
+  })
+
+  it('resolves injected relative cwd and home paths to absolute global install paths', async () => {
     const absoluteCwd = await makeTempProject()
     const relativeCwd = relative(process.cwd(), absoluteCwd)
     const relativeHome = relative(process.cwd(), join(absoluteCwd, 'home'))
 
     const result = await installOpenCodeMetaHarness({ cwd: relativeCwd, home: relativeHome })
 
-    const configPath = resolve(relativeCwd, '.opencode', 'opencode.json')
-    const dataRoot = resolve(relativeCwd, '.local', 'share', 'opencode-meta-harness')
+    const configPath = resolve(relativeHome, '.config', 'opencode', 'opencode.json')
+    const dataRoot = resolve(relativeHome, '.local', 'share', 'opencode-meta-harness')
     expect(isAbsolute(result.configPath)).toBe(true)
     expect(isAbsolute(result.dataRoot)).toBe(true)
     expect(result).toMatchObject({ configPath, dataRoot })
@@ -134,7 +151,6 @@ describe('OpenCode meta-harness installer', () => {
     const result = await installOpenCodeMetaHarness({
       cwd: relative(process.cwd(), absoluteCwd),
       home: relativeHome,
-      global: true,
       env: { XDG_CONFIG_HOME: xdgConfigHome, XDG_DATA_HOME: xdgDataHome }
     })
 
@@ -151,13 +167,14 @@ describe('OpenCode meta-harness installer', () => {
 
   it('creates dataRoot before attempting a config write that fails', async () => {
     const cwd = await makeTempProject()
-    const configDir = join(cwd, '.opencode')
-    const dataRoot = join(cwd, '.local', 'share', 'opencode-meta-harness')
+    const home = join(cwd, 'home')
+    const configDir = join(home, '.config', 'opencode')
+    const dataRoot = join(home, '.local', 'share', 'opencode-meta-harness')
     await mkdir(configDir, { recursive: true })
     await chmod(configDir, 0o500)
 
     try {
-      await expect(installOpenCodeMetaHarness({ cwd, home: join(cwd, 'home') })).rejects.toThrow()
+      await expect(installOpenCodeMetaHarness({ cwd, home })).rejects.toThrow()
       expect((await stat(dataRoot)).isDirectory()).toBe(true)
     } finally {
       await chmod(configDir, 0o700)
@@ -166,11 +183,12 @@ describe('OpenCode meta-harness installer', () => {
 
   it('rejects invalid JSON without overwriting the existing config', async () => {
     const cwd = await makeTempProject()
-    const configPath = join(cwd, '.opencode', 'opencode.json')
-    await mkdir(join(cwd, '.opencode'), { recursive: true })
+    const home = join(cwd, 'home')
+    const configPath = join(home, '.config', 'opencode', 'opencode.json')
+    await mkdir(join(home, '.config', 'opencode'), { recursive: true })
     await writeFile(configPath, '{ invalid json', 'utf8')
 
-    await expect(installOpenCodeMetaHarness({ cwd, home: join(cwd, 'home') })).rejects.toThrow(
+    await expect(installOpenCodeMetaHarness({ cwd, home })).rejects.toThrow(
       `Could not parse OpenCode config at ${configPath}`
     )
     await expect(readFile(configPath, 'utf8')).resolves.toBe('{ invalid json')

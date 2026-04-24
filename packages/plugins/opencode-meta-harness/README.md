@@ -21,28 +21,26 @@ Release automation uses Changesets plus a manual commit-scoped `publish.yml` dis
 
 ## Install from npm
 
-Use the package executable to patch OpenCode config with the npm plugin tuple and a project-local data root:
+Use the package executable to patch the global OpenCode config with the npm plugin tuple and a user-level data root:
 
 ```bash
 npx @meta-harness/opencode-meta-harness install
 ```
 
-By default this writes `.opencode/opencode.json` under the current working directory, creates `.opencode` if needed, and creates the project-local `.local/share/opencode-meta-harness` folder for plugin data. The installer resolves that folder to an absolute path before writing `dataRoot` into config, so the generated entry looks like:
+By default this writes `$XDG_CONFIG_HOME/opencode/opencode.json` or `~/.config/opencode/opencode.json`, and creates `$XDG_DATA_HOME/opencode-meta-harness` or `~/.local/share/opencode-meta-harness` for plugin data. The installer resolves that folder to an absolute path before writing `dataRoot` into config, so the generated entry looks like:
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": [["@meta-harness/opencode-meta-harness", { "dataRoot": "/absolute/path/to/project/.local/share/opencode-meta-harness" }]]
+  "plugin": [["@meta-harness/opencode-meta-harness", { "dataRoot": "/home/you/.local/share/opencode-meta-harness" }]]
 }
 ```
 
-For a user-level OpenCode install, pass `--global` or `-g`:
+`--global` and `-g` are accepted as compatibility aliases; installs are global either way:
 
 ```bash
 npx @meta-harness/opencode-meta-harness install --global
 ```
-
-Global installs patch `$XDG_CONFIG_HOME/opencode/opencode.json` or `~/.config/opencode/opencode.json`, and create `$XDG_DATA_HOME/opencode-meta-harness` or `~/.local/share/opencode-meta-harness`.
 
 Use `--dry-run` to print the target config and data paths without writing files.
 

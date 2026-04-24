@@ -21,14 +21,13 @@ export function renderHelp() {
     '@meta-harness/opencode-meta-harness CLI',
     '',
     'Usage:',
-    '  npx @meta-harness/opencode-meta-harness install [--global|-g] [--dry-run]',
-    '  npx @meta-harness/opencode-meta-harness install --global',
+    '  npx @meta-harness/opencode-meta-harness install [--dry-run]',
     '',
     'Commands:',
-    '  install  Patch OpenCode config with the meta-harness plugin tuple',
+    '  install  Patch global OpenCode config with the meta-harness plugin tuple',
     '',
     'Options:',
-    '  -g, --global  Use XDG OpenCode config/data locations instead of the current project',
+    '  -g, --global  Compatibility alias; install already uses global XDG/OpenCode paths',
     '  --dry-run     Show target paths without writing config or data directories',
     '  -h, --help    Show this help'
   ].join('\n')

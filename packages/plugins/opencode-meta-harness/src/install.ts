@@ -11,6 +11,7 @@ type PluginEntry = string | PluginTuple | unknown
 export type InstallOpenCodeMetaHarnessOptions = {
   cwd?: string
   home?: string
+  /** @deprecated Installs are global by default; this flag is kept as a no-op compatibility alias. */
   global?: boolean
   dryRun?: boolean
   env?: Record<string, string | undefined>
@@ -29,10 +30,9 @@ export async function installOpenCodeMetaHarness(
   const cwd = resolve(options.cwd ?? process.cwd())
   const home = resolve(options.home ?? process.env.HOME ?? cwd)
   const env = options.env ?? process.env
-  const globalInstall = options.global === true
   const dryRun = options.dryRun === true
-  const configPath = resolveConfigPath({ cwd, home, env, globalInstall })
-  const dataRoot = resolveDataRoot({ cwd, home, env, globalInstall })
+  const configPath = resolveConfigPath({ home, env })
+  const dataRoot = resolveDataRoot({ home, env })
   const existingConfig = await readConfig(configPath)
   const nextConfig = patchConfig(existingConfig.config, dataRoot)
   const nextJson = `${JSON.stringify(nextConfig, null, 2)}\n`
@@ -51,29 +51,17 @@ export async function installOpenCodeMetaHarness(
 }
 
 function resolveConfigPath(input: {
-  cwd: string
   home: string
   env: Record<string, string | undefined>
-  globalInstall: boolean
 }): string {
-  if (!input.globalInstall) {
-    return resolve(input.cwd, '.opencode', 'opencode.json')
-  }
-
   const configHome = input.env.XDG_CONFIG_HOME ? resolve(input.env.XDG_CONFIG_HOME) : resolve(input.home, '.config')
   return resolve(configHome, 'opencode', 'opencode.json')
 }
 
 function resolveDataRoot(input: {
-  cwd: string
   home: string
   env: Record<string, string | undefined>
-  globalInstall: boolean
 }): string {
-  if (!input.globalInstall) {
-    return resolve(input.cwd, '.local', 'share', 'opencode-meta-harness')
-  }
-
   const dataHome = input.env.XDG_DATA_HOME ? resolve(input.env.XDG_DATA_HOME) : resolve(input.home, '.local', 'share')
   return resolve(dataHome, 'opencode-meta-harness')
 }
