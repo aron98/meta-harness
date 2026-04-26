@@ -12,6 +12,8 @@ npx @meta-harness/opencode-meta-harness install
 
 This patches your global OpenCode config and stores plugin data under `$XDG_DATA_HOME/opencode-meta-harness` or `~/.local/share/opencode-meta-harness`. See the [OpenCode plugin package guide](./packages/plugins/opencode-meta-harness/README.md) for dry runs, generated config shape, and repo-checkout development setup.
 
+The same npm CLI supports `install` for first-time global setup, `doctor` to check install, config, and version health, and `upgrade` to check npm for a newer version and update the OpenCode config when appropriate.
+
 ## What the Current MVP Can Do
 
 - log validated artifact records into `data/artifacts/<repo-id>/<artifact-id>.json`

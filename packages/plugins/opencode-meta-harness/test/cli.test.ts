@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 
@@ -16,6 +16,8 @@ function makeOutput() {
 describe('OpenCode meta-harness CLI', () => {
   it('renders install help for npx usage', () => {
     expect(renderHelp()).toContain('npx @meta-harness/opencode-meta-harness install')
+    expect(renderHelp()).toContain('npx @meta-harness/opencode-meta-harness doctor')
+    expect(renderHelp()).toContain('npx @meta-harness/opencode-meta-harness upgrade')
     expect(renderHelp()).toContain('global OpenCode config')
     expect(renderHelp()).not.toContain('--global')
   })
@@ -50,6 +52,72 @@ describe('OpenCode meta-harness CLI', () => {
     const dataRoot = join(home, '.local', 'share', 'opencode-meta-harness')
     await expect(readFile(join(home, '.config', 'opencode', 'opencode.json'), 'utf8')).resolves.toContain(dataRoot)
     expect(result).toEqual({ success: true, exitCode: 0, output: expect.stringContaining('Installed @meta-harness/opencode-meta-harness') })
+    expect(output.error).not.toHaveBeenCalled()
+  })
+
+  it('dispatches doctor with injected package metadata providers', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'opencode-meta-harness-cli-'))
+    const home = join(cwd, 'home')
+    const output = makeOutput()
+
+    const result = await run(['doctor'], { log: output.log }, {
+      error: output.error,
+      cwd,
+      home,
+      env: {},
+      packageVersionProvider: async () => '0.1.0',
+      latestVersionProvider: async () => '0.2.0'
+    })
+
+    expect(result).toEqual({ success: true, exitCode: 0, output: expect.stringContaining('Update status: unknown') })
+    expect(result.output).toContain('Current package version: 0.1.0')
+    expect(result.output).toContain('Latest npm version: 0.2.0')
+    expect(output.log).toHaveBeenCalledWith(result.output)
+    expect(output.error).not.toHaveBeenCalled()
+  })
+
+  it('dispatches upgrade and reports an explicit updated package spec', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'opencode-meta-harness-cli-'))
+    const home = join(cwd, 'home')
+    await run(['install'], { log: vi.fn<(message: string) => void>() }, { cwd, home, env: {} })
+    const output = makeOutput()
+
+    const result = await run(['upgrade'], { log: output.log }, {
+      error: output.error,
+      cwd,
+      home,
+      env: {},
+      packageVersionProvider: async () => '0.1.0',
+      latestVersionProvider: async () => '0.2.0'
+    })
+
+    expect(result).toEqual({ success: true, exitCode: 0, output: expect.stringContaining('Updated @meta-harness/opencode-meta-harness to 0.2.0') })
+    expect(output.log).toHaveBeenCalledWith(result.output)
+    expect(output.error).not.toHaveBeenCalled()
+  })
+
+  it('install output recommends upgrade for an already configured bare plugin when latest is known and CLI is latest', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'opencode-meta-harness-cli-'))
+    const home = join(cwd, 'home')
+    const configPath = join(home, '.config', 'opencode', 'opencode.json')
+    const dataRoot = join(home, '.local', 'share', 'opencode-meta-harness')
+    await mkdir(join(home, '.config', 'opencode'), { recursive: true })
+    await writeFile(configPath, JSON.stringify({
+      plugin: [['@meta-harness/opencode-meta-harness', { dataRoot }]]
+    }, null, 2), 'utf8')
+    const output = makeOutput()
+
+    const result = await run(['install'], { log: output.log }, {
+      error: output.error,
+      cwd,
+      home,
+      env: {},
+      packageVersionProvider: async () => '0.2.0',
+      latestVersionProvider: async () => '0.2.0'
+    })
+
+    expect(result).toEqual({ success: true, exitCode: 0, output: expect.stringContaining('Run: npx @meta-harness/opencode-meta-harness upgrade') })
+    expect(result.output).toContain('Update available: 0.2.0')
     expect(output.error).not.toHaveBeenCalled()
   })
 })
