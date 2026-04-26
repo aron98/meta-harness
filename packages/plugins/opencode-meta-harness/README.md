@@ -21,6 +21,42 @@ By default this writes `$XDG_CONFIG_HOME/opencode/opencode.json` or `~/.config/o
 
 Use `--dry-run` to print the target config and data paths without writing files.
 
+The installer is safe to run more than once. If the plugin is already configured, it normalizes duplicate bare entries into a single tuple and reports `Already installed: yes` instead of adding another plugin entry. If a newer npm version is available, the install output tells you to run the upgrade command.
+
+## Commands
+
+```bash
+npx @meta-harness/opencode-meta-harness install [--dry-run]
+npx @meta-harness/opencode-meta-harness doctor
+npx @meta-harness/opencode-meta-harness upgrade [--dry-run]
+```
+
+### `doctor`
+
+`doctor` inspects the OpenCode config and package health without requiring OpenCode to be installed:
+
+- OpenCode config path
+- data root path
+- whether the config exists and parses
+- whether the plugin is configured
+- the configured package spec
+- whether the data root exists
+- current package version
+- latest npm version, or `unknown` if unavailable
+- update status: `up to date`, `update available`, or `unknown`
+
+### `upgrade`
+
+OpenCode may cache npm plugin packages, so a bare package spec can remain on an older cached version. `upgrade` runs the same health checks as `doctor`; when a newer npm version is available, it rewrites the configured plugin package to an explicit version such as:
+
+```json
+{
+  "plugin": [["@meta-harness/opencode-meta-harness@0.2.0", { "dataRoot": "/home/you/.local/share/opencode-meta-harness" }]]
+}
+```
+
+Tuple options such as `dataRoot` are preserved. If the config is already up to date, `upgrade` reports that no change is needed. Use `upgrade --dry-run` to preview the package spec change without writing the config.
+
 ## Status in this slice
 
 This package already ships a real default OpenCode plugin module with id `opencode-meta-harness`.
@@ -70,6 +106,9 @@ OpenCode loads local plugin files directly from those directories at startup, so
 
 - `Cannot find module .../dist/index.js`: for repo-checkout installs, run `pnpm --filter @meta-harness/opencode-meta-harness build` again, then confirm the absolute path in your plugin file.
 - `opencode-meta-harness install failed: Could not parse OpenCode config`: fix the JSON syntax in `opencode.json`; the installer does not overwrite invalid JSON.
+- `opencode-meta-harness upgrade failed: Could not parse OpenCode config`: fix the JSON syntax in `opencode.json`; upgrade also refuses to overwrite invalid JSON.
+- `doctor` shows `Latest npm version: unknown`: the npm registry check failed or was unavailable. The config checks are still useful; retry later before upgrading.
+- Plugin changes are not showing up after npm publish: run `npx @meta-harness/opencode-meta-harness doctor`, then `npx @meta-harness/opencode-meta-harness upgrade` if it reports an update. This writes an explicit package version so OpenCode does not keep using a stale cached `@latest` resolution.
 - Plugin changes are not showing up: restart OpenCode, because plugin files are loaded at startup.
 - The plugin file loads but workspace imports fail: keep the re-export pointed at the built `dist/index.js` artifact, not `src/index.ts`.
 - You need npm-only dependencies for a local plugin directory: prefer the `npx @meta-harness/opencode-meta-harness install` flow so OpenCode resolves the published package from config.
