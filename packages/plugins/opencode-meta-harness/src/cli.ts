@@ -1,3 +1,4 @@
+import { realpathSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 
 import { inspectOpenCodeMetaHarnessHealth, renderHealthReport } from './doctor'
@@ -38,6 +39,15 @@ export function renderHelp() {
     '  --dry-run     Show target paths/changes without writing config or data directories',
     '  -h, --help    Show this help'
   ].join('\n')
+}
+
+export function isCliEntrypoint(importMetaUrl = import.meta.url, argvPath = process.argv[1]) {
+  if (!argvPath) {
+    return false
+  }
+
+  const resolvedArgvPath = realpathSync(argvPath)
+  return importMetaUrl === pathToFileURL(resolvedArgvPath).href
 }
 
 export async function run(
@@ -188,7 +198,7 @@ async function runUpgrade(
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isCliEntrypoint()) {
   void run().then((result) => {
     if (!result.success) {
       process.exitCode = result.exitCode
