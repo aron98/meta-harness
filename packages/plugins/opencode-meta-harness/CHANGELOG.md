@@ -1,5 +1,11 @@
 # @meta-harness/opencode-meta-harness
 
+## 0.3.1
+
+### Patch Changes
+
+- 7d3af31: Fix the npm CLI bin entrypoint so commands run when invoked through package-manager symlinks.
+
 ## 0.3.0
 
 ### Minor Changes
