@@ -11,7 +11,7 @@ const packageDir = resolve(testDir, '..')
 const localPluginReExport = "export { default } from '/absolute/path/to/meta-harness/packages/plugins/opencode-meta-harness/dist/index.js'"
 const npmConfigSnippet = `{
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@meta-harness/opencode-meta-harness"]
+  "plugin": [["@meta-harness/opencode-meta-harness", { "dataRoot": "/home/you/.local/share/opencode-meta-harness" }]]
 }`
 
 describe('OpenCode plugin install surface', () => {
@@ -29,6 +29,7 @@ describe('OpenCode plugin install surface', () => {
           types?: string
         }
       }
+      bin?: Record<string, string>
     }
 
     expect(packageJson.name).toBe('@meta-harness/opencode-meta-harness')
@@ -37,6 +38,9 @@ describe('OpenCode plugin install surface', () => {
       import: './dist/index.js',
       require: './dist/index.cjs',
       types: './dist/index.d.ts'
+    })
+    expect(packageJson.bin).toEqual({
+      'opencode-meta-harness': './dist/cli.js'
     })
     expect(packageJson.dependencies).toMatchObject({
       '@meta-harness/core': 'workspace:*',
@@ -53,9 +57,17 @@ describe('OpenCode plugin install surface', () => {
     expect(readme).toContain('Project-local plugin file in `.opencode/plugins/meta-harness.js`:')
     expect(readme).toContain('Global plugin file in `~/.config/opencode/plugins/meta-harness.js`:')
     expect(readme).toContain(localPluginReExport)
-    expect(readme).toContain('## Planned npm install flow')
+    expect(readme).toContain('## Install for OpenCode')
+    expect(readme).toContain('npx @meta-harness/opencode-meta-harness install')
+    expect(readme.indexOf('npx @meta-harness/opencode-meta-harness install')).toBeLessThan(
+      readme.indexOf('## Status in this slice')
+    )
+    expect(readme).not.toContain('npx @meta-harness/opencode-meta-harness install --global')
+    expect(readme).not.toContain('--global')
+    expect(readme).toContain('patch the global OpenCode config')
+    expect(readme).toContain('`~/.local/share/opencode-meta-harness`')
+    expect(readme).toContain('resolves that folder to an absolute path before writing `dataRoot` into config')
     expect(readme).toContain(npmConfigSnippet)
-    expect(readme).toContain('not published to npm yet')
     expect(readme).toContain('## Troubleshooting')
     expect(readme).toContain('`event` hook')
     expect(readme).toContain('`experimental.session.compacting` hook')

@@ -2,6 +2,25 @@
 
 Thin OpenCode adapter package for the current host-integration slice.
 
+## Install for OpenCode
+
+Use the package executable to patch the global OpenCode config with the npm plugin tuple and a user-level data root:
+
+```bash
+npx @meta-harness/opencode-meta-harness install
+```
+
+By default this writes `$XDG_CONFIG_HOME/opencode/opencode.json` or `~/.config/opencode/opencode.json`, and creates `$XDG_DATA_HOME/opencode-meta-harness` or `~/.local/share/opencode-meta-harness` for plugin data. The installer resolves that folder to an absolute path before writing `dataRoot` into config, so the generated entry looks like:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [["@meta-harness/opencode-meta-harness", { "dataRoot": "/home/you/.local/share/opencode-meta-harness" }]]
+}
+```
+
+Use `--dry-run` to print the target config and data paths without writing files.
+
 ## Status in this slice
 
 This package already ships a real default OpenCode plugin module with id `opencode-meta-harness`.
@@ -17,7 +36,7 @@ Treat `chat.message` as current implementation detail, not as a formally documen
 
 The retrieval integration in this slice is explicitly heuristic and observational. A small allowlist of retrieval-like tool names (`read`, `grep`, `glob`, and `webfetch`) triggers the existing adapter `inspectRetrieval()` seam from documented `tool.execute.before` inputs. In this slice, args are only observed in the host payload; they are not used for classification and are not interpreted as retrieval policy input. It does not introduce a first-class host retrieval contract, and it does not claim assistant-message or agent provenance that OpenCode does not expose in these hooks.
 
-Release automation now uses Changesets plus a manual commit-scoped `publish.yml` dispatch. Until the first package version is actually published, keep using the repo-checkout flow below; once a package version is live on npm, the install shape described here becomes the supported published-package path. See `../../../docs/releasing.md` for the repo release flow.
+Release automation uses Changesets plus a manual commit-scoped `publish.yml` dispatch. See `../../../docs/releasing.md` for the repo release flow.
 
 ## Install from a repo checkout
 
@@ -47,25 +66,13 @@ Use this flow when working from a local clone of this monorepo.
 
 OpenCode loads local plugin files directly from those directories at startup, so this setup is the truthful way to use the current unpublished package from a repo checkout.
 
-## Planned npm install flow
-
-This package is not published to npm yet. After publish, the intended OpenCode config shape is:
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "plugin": ["@meta-harness/opencode-meta-harness"]
-}
-```
-
-Put that in `opencode.json` or `~/.config/opencode/opencode.json` once a published package exists. Until then, prefer the repo-checkout file-based setup above.
-
 ## Troubleshooting
 
-- `Cannot find module .../dist/index.js`: run `pnpm --filter @meta-harness/opencode-meta-harness build` again, then confirm the absolute path in your plugin file.
+- `Cannot find module .../dist/index.js`: for repo-checkout installs, run `pnpm --filter @meta-harness/opencode-meta-harness build` again, then confirm the absolute path in your plugin file.
+- `opencode-meta-harness install failed: Could not parse OpenCode config`: fix the JSON syntax in `opencode.json`; the installer does not overwrite invalid JSON.
 - Plugin changes are not showing up: restart OpenCode, because plugin files are loaded at startup.
 - The plugin file loads but workspace imports fail: keep the re-export pointed at the built `dist/index.js` artifact, not `src/index.ts`.
-- You need npm-only dependencies for a local plugin directory: OpenCode loads local plugin files directly; use a config-directory `package.json` for extra dependencies, or wait for the published npm package flow.
+- You need npm-only dependencies for a local plugin directory: prefer the `npx @meta-harness/opencode-meta-harness install` flow so OpenCode resolves the published package from config.
 
 ## What this package wires today
 
