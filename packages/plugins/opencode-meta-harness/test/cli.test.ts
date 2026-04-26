@@ -1,10 +1,11 @@
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, symlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { pathToFileURL } from 'node:url'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { renderHelp, run } from '../src/cli'
+import { isCliEntrypoint, renderHelp, run } from '../src/cli'
 
 function makeOutput() {
   return {
@@ -20,6 +21,18 @@ describe('OpenCode meta-harness CLI', () => {
     expect(renderHelp()).toContain('npx @meta-harness/opencode-meta-harness upgrade')
     expect(renderHelp()).toContain('global OpenCode config')
     expect(renderHelp()).not.toContain('--global')
+  })
+
+  it('detects npm bin symlinks as CLI entrypoints', async () => {
+    const cwd = await mkdtemp(join(tmpdir(), 'opencode-meta-harness-cli-'))
+    const realEntrypoint = join(cwd, 'dist', 'cli.js')
+    const binEntrypoint = join(cwd, '.bin', 'opencode-meta-harness')
+    await mkdir(join(cwd, 'dist'), { recursive: true })
+    await mkdir(join(cwd, '.bin'), { recursive: true })
+    await writeFile(realEntrypoint, '', 'utf8')
+    await symlink(realEntrypoint, binEntrypoint)
+
+    expect(isCliEntrypoint(pathToFileURL(realEntrypoint).href, binEntrypoint)).toBe(true)
   })
 
   it('rejects removed global install flags', async () => {
