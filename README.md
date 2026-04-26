@@ -2,6 +2,16 @@
 
 `meta-harness` is a TypeScript pnpm workspace for a local, file-based harness loop. The repo already supports logging task artifacts, promoting scoped memory, retrieving prior evidence, preparing a session packet for a new task, and evaluating packet quality against benchmark fixtures.
 
+## Install for OpenCode
+
+Most users should install the OpenCode plugin directly:
+
+```bash
+npx @meta-harness/opencode-meta-harness install
+```
+
+This patches your global OpenCode config and stores plugin data under `$XDG_DATA_HOME/opencode-meta-harness` or `~/.local/share/opencode-meta-harness`. See the [OpenCode plugin package guide](./packages/plugins/opencode-meta-harness/README.md) for dry runs, generated config shape, and repo-checkout development setup.
+
 ## What the Current MVP Can Do
 
 - log validated artifact records into `data/artifacts/<repo-id>/<artifact-id>.json`

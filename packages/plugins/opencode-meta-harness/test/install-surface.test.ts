@@ -57,8 +57,11 @@ describe('OpenCode plugin install surface', () => {
     expect(readme).toContain('Project-local plugin file in `.opencode/plugins/meta-harness.js`:')
     expect(readme).toContain('Global plugin file in `~/.config/opencode/plugins/meta-harness.js`:')
     expect(readme).toContain(localPluginReExport)
-    expect(readme).toContain('## Install from npm')
+    expect(readme).toContain('## Install for OpenCode')
     expect(readme).toContain('npx @meta-harness/opencode-meta-harness install')
+    expect(readme.indexOf('npx @meta-harness/opencode-meta-harness install')).toBeLessThan(
+      readme.indexOf('## Status in this slice')
+    )
     expect(readme).not.toContain('npx @meta-harness/opencode-meta-harness install --global')
     expect(readme).not.toContain('--global')
     expect(readme).toContain('patch the global OpenCode config')

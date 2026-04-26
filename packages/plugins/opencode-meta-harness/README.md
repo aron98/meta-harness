@@ -2,24 +2,7 @@
 
 Thin OpenCode adapter package for the current host-integration slice.
 
-## Status in this slice
-
-This package already ships a real default OpenCode plugin module with id `opencode-meta-harness`.
-
-Today that module is verified for these host surfaces:
-
-- the `event` hook for session idle transitions
-- the `experimental.session.compacting` hook for best-effort compaction
-- the documented `tool.execute.before` hook for heuristic retrieval-like inspection
-- internal task-start wiring that is currently derived from `chat.message`
-
-Treat `chat.message` as current implementation detail, not as a formally documented public OpenCode hook contract.
-
-The retrieval integration in this slice is explicitly heuristic and observational. A small allowlist of retrieval-like tool names (`read`, `grep`, `glob`, and `webfetch`) triggers the existing adapter `inspectRetrieval()` seam from documented `tool.execute.before` inputs. In this slice, args are only observed in the host payload; they are not used for classification and are not interpreted as retrieval policy input. It does not introduce a first-class host retrieval contract, and it does not claim assistant-message or agent provenance that OpenCode does not expose in these hooks.
-
-Release automation uses Changesets plus a manual commit-scoped `publish.yml` dispatch. See `../../../docs/releasing.md` for the repo release flow.
-
-## Install from npm
+## Install for OpenCode
 
 Use the package executable to patch the global OpenCode config with the npm plugin tuple and a user-level data root:
 
@@ -37,6 +20,23 @@ By default this writes `$XDG_CONFIG_HOME/opencode/opencode.json` or `~/.config/o
 ```
 
 Use `--dry-run` to print the target config and data paths without writing files.
+
+## Status in this slice
+
+This package already ships a real default OpenCode plugin module with id `opencode-meta-harness`.
+
+Today that module is verified for these host surfaces:
+
+- the `event` hook for session idle transitions
+- the `experimental.session.compacting` hook for best-effort compaction
+- the documented `tool.execute.before` hook for heuristic retrieval-like inspection
+- internal task-start wiring that is currently derived from `chat.message`
+
+Treat `chat.message` as current implementation detail, not as a formally documented public OpenCode hook contract.
+
+The retrieval integration in this slice is explicitly heuristic and observational. A small allowlist of retrieval-like tool names (`read`, `grep`, `glob`, and `webfetch`) triggers the existing adapter `inspectRetrieval()` seam from documented `tool.execute.before` inputs. In this slice, args are only observed in the host payload; they are not used for classification and are not interpreted as retrieval policy input. It does not introduce a first-class host retrieval contract, and it does not claim assistant-message or agent provenance that OpenCode does not expose in these hooks.
+
+Release automation uses Changesets plus a manual commit-scoped `publish.yml` dispatch. See `../../../docs/releasing.md` for the repo release flow.
 
 ## Install from a repo checkout
 
