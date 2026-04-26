@@ -36,12 +36,6 @@ By default this writes `$XDG_CONFIG_HOME/opencode/opencode.json` or `~/.config/o
 }
 ```
 
-`--global` and `-g` are accepted as compatibility aliases; installs are global either way:
-
-```bash
-npx @meta-harness/opencode-meta-harness install --global
-```
-
 Use `--dry-run` to print the target config and data paths without writing files.
 
 ## Install from a repo checkout

@@ -11,8 +11,6 @@ type PluginEntry = string | PluginTuple | unknown
 export type InstallOpenCodeMetaHarnessOptions = {
   cwd?: string
   home?: string
-  /** @deprecated Installs are global by default; this flag is kept as a no-op compatibility alias. */
-  global?: boolean
   dryRun?: boolean
   env?: Record<string, string | undefined>
 }

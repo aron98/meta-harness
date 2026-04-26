@@ -17,6 +17,22 @@ describe('OpenCode meta-harness CLI', () => {
   it('renders install help for npx usage', () => {
     expect(renderHelp()).toContain('npx @meta-harness/opencode-meta-harness install')
     expect(renderHelp()).toContain('global OpenCode config')
+    expect(renderHelp()).not.toContain('--global')
+  })
+
+  it('rejects removed global install flags', async () => {
+    const output = makeOutput()
+
+    const result = await run(['install', '--global'], { log: output.log }, { error: output.error })
+
+    expect(result).toEqual({
+      success: false,
+      exitCode: 1,
+      output: 'Unknown install option: --global',
+      error: 'Unknown install option: --global'
+    })
+    expect(output.log).not.toHaveBeenCalled()
+    expect(output.error).toHaveBeenCalledWith('Unknown install option: --global')
   })
 
   it('dispatches install to the package installer', async () => {

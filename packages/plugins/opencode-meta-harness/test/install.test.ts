@@ -109,21 +109,6 @@ describe('OpenCode meta-harness installer', () => {
     expect(result.dataRoot).toBe(dataRoot)
   })
 
-  it('keeps --global as a no-op alias for the default global install', async () => {
-    const cwd = await makeTempProject()
-    const home = join(cwd, 'home')
-
-    const result = await installOpenCodeMetaHarness({ cwd, home, global: true, env: {} })
-
-    const configPath = join(home, '.config', 'opencode', 'opencode.json')
-    const dataRoot = join(home, '.local', 'share', 'opencode-meta-harness')
-    expect(result).toMatchObject({ configPath, dataRoot })
-    await expect(readJson(configPath)).resolves.toEqual({
-      $schema: 'https://opencode.ai/config.json',
-      plugin: [['@meta-harness/opencode-meta-harness', { dataRoot }]]
-    })
-  })
-
   it('resolves injected relative cwd and home paths to absolute global install paths', async () => {
     const absoluteCwd = await makeTempProject()
     const relativeCwd = relative(process.cwd(), absoluteCwd)

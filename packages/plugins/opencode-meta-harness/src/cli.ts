@@ -27,7 +27,6 @@ export function renderHelp() {
     '  install  Patch global OpenCode config with the meta-harness plugin tuple',
     '',
     'Options:',
-    '  -g, --global  Compatibility alias; install already uses global XDG/OpenCode paths',
     '  --dry-run     Show target paths without writing config or data directories',
     '  -h, --help    Show this help'
   ].join('\n')
@@ -52,7 +51,7 @@ export async function run(
     return { success: false, exitCode: 1, output: error, error }
   }
 
-  const unsupported = args.slice(1).filter((arg) => !['--global', '-g', '--dry-run'].includes(arg))
+  const unsupported = args.slice(1).filter((arg) => arg !== '--dry-run')
   if (unsupported.length > 0) {
     const error = `Unknown install option: ${unsupported[0]}`
     stderr(error)
@@ -64,7 +63,6 @@ export async function run(
       cwd: options.cwd,
       home: options.home,
       env: options.env,
-      global: args.includes('--global') || args.includes('-g'),
       dryRun: args.includes('--dry-run')
     })
     const verb = result.dryRun ? 'Would install' : 'Installed'
