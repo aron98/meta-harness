@@ -1,6 +1,6 @@
 {
   "name": "@meta-harness/opencode-meta-harness",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",

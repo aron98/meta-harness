@@ -1,5 +1,11 @@
 # @meta-harness/opencode-meta-harness
 
+## 0.3.0
+
+### Minor Changes
+
+- 1661ab2: Add doctor and upgrade commands, plus update-aware install reporting for OpenCode plugin setups.
+
 ## 0.2.0
 
 ### Minor Changes
