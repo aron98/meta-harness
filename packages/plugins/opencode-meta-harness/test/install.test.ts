@@ -19,7 +19,13 @@ describe('OpenCode meta-harness installer', () => {
     const cwd = await makeTempProject()
     const home = join(cwd, 'home')
 
-    const result = await installOpenCodeMetaHarness({ cwd, home, env: {} })
+    const result = await installOpenCodeMetaHarness({
+      cwd,
+      home,
+      env: {},
+      packageVersionProvider: async () => undefined,
+      latestVersionProvider: async () => undefined
+    })
 
     const configPath = join(home, '.config', 'opencode', 'opencode.json')
     const dataRoot = join(home, '.local', 'share', 'opencode-meta-harness')
@@ -36,7 +42,12 @@ describe('OpenCode meta-harness installer', () => {
       configPath,
       dataRoot,
       dryRun: false,
-      changed: true
+      changed: true,
+      alreadyInstalled: false,
+      configured: true,
+      currentVersion: undefined,
+      latestVersion: undefined,
+      updateAvailable: false
     })
   })
 
@@ -51,7 +62,13 @@ describe('OpenCode meta-harness installer', () => {
       plugin: ['other-plugin', '@meta-harness/opencode-meta-harness']
     }, null, 2), 'utf8')
 
-    await installOpenCodeMetaHarness({ cwd, home, env: {} })
+    await installOpenCodeMetaHarness({
+      cwd,
+      home,
+      env: {},
+      packageVersionProvider: async () => undefined,
+      latestVersionProvider: async () => undefined
+    })
 
     const dataRoot = join(home, '.local', 'share', 'opencode-meta-harness')
     await expect(readJson(configPath)).resolves.toEqual({
@@ -76,13 +93,104 @@ describe('OpenCode meta-harness installer', () => {
       ]
     }, null, 2), 'utf8')
 
-    await installOpenCodeMetaHarness({ cwd, home, env: {} })
+    const result = await installOpenCodeMetaHarness({ cwd, home, env: {} })
 
     const dataRoot = join(home, '.local', 'share', 'opencode-meta-harness')
     await expect(readJson(configPath)).resolves.toEqual({
       plugin: [
         ['@meta-harness/opencode-meta-harness', { dataRoot, repoId: 'repo-alpha' }]
       ]
+    })
+    expect(result.alreadyInstalled).toBe(true)
+    expect(result.configured).toBe(true)
+  })
+
+  it('returns already installed without changing an equivalent existing tuple', async () => {
+    const cwd = await makeTempProject()
+    const home = join(cwd, 'home')
+    const configPath = join(home, '.config', 'opencode', 'opencode.json')
+    const dataRoot = join(home, '.local', 'share', 'opencode-meta-harness')
+    await mkdir(join(home, '.config', 'opencode'), { recursive: true })
+    await writeFile(configPath, JSON.stringify({
+      plugin: [['@meta-harness/opencode-meta-harness', { dataRoot }]]
+    }, null, 2), 'utf8')
+
+    const result = await installOpenCodeMetaHarness({
+      cwd,
+      home,
+      env: {},
+      packageVersionProvider: async () => '0.1.0',
+      latestVersionProvider: async () => '0.2.0'
+    })
+
+    expect(result).toMatchObject({
+      changed: false,
+      alreadyInstalled: true,
+      configured: true,
+      currentVersion: '0.1.0',
+      latestVersion: '0.2.0',
+      updateAvailable: true
+    })
+    await expect(readJson(configPath)).resolves.toEqual({
+      plugin: [['@meta-harness/opencode-meta-harness', { dataRoot }]]
+    })
+  })
+
+  it('reports update available for an already configured bare plugin when latest is known and CLI is latest', async () => {
+    const cwd = await makeTempProject()
+    const home = join(cwd, 'home')
+    const configPath = join(home, '.config', 'opencode', 'opencode.json')
+    const dataRoot = join(home, '.local', 'share', 'opencode-meta-harness')
+    await mkdir(join(home, '.config', 'opencode'), { recursive: true })
+    await writeFile(configPath, JSON.stringify({
+      plugin: [['@meta-harness/opencode-meta-harness', { dataRoot }]]
+    }, null, 2), 'utf8')
+
+    const result = await installOpenCodeMetaHarness({
+      cwd,
+      home,
+      env: {},
+      packageVersionProvider: async () => '0.2.0',
+      latestVersionProvider: async () => '0.2.0'
+    })
+
+    expect(result).toMatchObject({
+      changed: false,
+      alreadyInstalled: true,
+      latestVersion: '0.2.0',
+      updateAvailable: true
+    })
+    await expect(readJson(configPath)).resolves.toEqual({
+      plugin: [['@meta-harness/opencode-meta-harness', { dataRoot }]]
+    })
+  })
+
+  it('reports update available for an already configured stale explicit plugin when latest is known and CLI is latest', async () => {
+    const cwd = await makeTempProject()
+    const home = join(cwd, 'home')
+    const configPath = join(home, '.config', 'opencode', 'opencode.json')
+    const dataRoot = join(home, '.local', 'share', 'opencode-meta-harness')
+    await mkdir(join(home, '.config', 'opencode'), { recursive: true })
+    await writeFile(configPath, JSON.stringify({
+      plugin: [['@meta-harness/opencode-meta-harness@0.1.0', { dataRoot }]]
+    }, null, 2), 'utf8')
+
+    const result = await installOpenCodeMetaHarness({
+      cwd,
+      home,
+      env: {},
+      packageVersionProvider: async () => '0.2.0',
+      latestVersionProvider: async () => '0.2.0'
+    })
+
+    expect(result).toMatchObject({
+      changed: false,
+      alreadyInstalled: true,
+      latestVersion: '0.2.0',
+      updateAvailable: true
+    })
+    await expect(readJson(configPath)).resolves.toEqual({
+      plugin: [['@meta-harness/opencode-meta-harness@0.1.0', { dataRoot }]]
     })
   })
 
