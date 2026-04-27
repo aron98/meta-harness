@@ -65,6 +65,7 @@ export type EvaluatePacketBenchmarksInput = {
   referenceTime: string;
   maxMemories?: number;
   maxArtifacts?: number;
+  policyInput?: PrepareSessionPacketInput['policyInput'];
 };
 
 function roundMetric(value: number): number {
@@ -95,6 +96,7 @@ function buildPacket(
     artifactRecords,
     maxMemories: input.maxMemories,
     maxArtifacts: input.maxArtifacts,
+    policyInput: input.policyInput,
     referenceTime: input.referenceTime
   };
 

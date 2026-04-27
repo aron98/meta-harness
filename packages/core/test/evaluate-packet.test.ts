@@ -155,4 +155,32 @@ describe('evaluatePacketBenchmarks', () => {
     expect(evaluation?.withRetrieval.packet.suggestedRoute).toBe('implement');
     expect(evaluation?.withRetrieval.metrics.routeHitRate).toBe(0);
   });
+
+  it('passes policy input through packet benchmark evaluation', () => {
+    const result = evaluatePacketBenchmarks({
+      benchmarks: [
+        {
+          id: 'fix-and-verify-build',
+          title: 'Fix and verify build',
+          prompt: 'Fix and verify the broken release build.',
+          route: 'implement',
+          repo: { id: 'repo-a', maturity: 'active' },
+          routeHints: [],
+          checklistHints: [],
+          tags: ['build']
+        }
+      ],
+      memoryRecords: [],
+      artifactRecords: [],
+      referenceTime: '2026-04-21T12:00:00.000Z',
+      policyInput: {
+        routing: {
+          taskTypeOrder: ['fix', 'verification'],
+          buildPromptMode: 'default'
+        }
+      }
+    });
+
+    expect(result.benchmarks[0]?.withRetrieval.packet.taskType).toBe('fix');
+  });
 });

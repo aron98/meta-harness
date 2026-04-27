@@ -1,20 +1,12 @@
 import type { ArtifactOutcome, ArtifactRecord } from './artifact-record';
 import { classifyTaskType } from './task-classification';
-import { rankArtifacts, rankMemories } from './retriever';
+import { rankArtifacts, rankMemories, type RetrievalPolicyInput } from './retriever';
 import type { RetrievalQuery } from './retrieval-query';
 import { buildVerificationChecklist } from './verification-checklist';
 import { parseSessionPacket, type SessionPacket, type SessionPacketRoute } from './session-packet';
 import type { MemoryRecord } from './memory-record';
 
-export type PrepareSessionPacketRetrievalPolicyInput = {
-  repoMatchWeight?: number;
-  tagOverlapWeight?: number;
-  recentMaxBonus?: number;
-  recentHalfLifeDays?: number;
-  taskTypeWeight?: number;
-  outcomeWeight?: number;
-  taskLocalMemoryBonus?: number;
-};
+export type PrepareSessionPacketRetrievalPolicyInput = RetrievalPolicyInput;
 
 export type PrepareSessionPacketRoutingPolicyInput = {
   taskTypeOrder?: string[];
@@ -118,7 +110,7 @@ function buildRationale(query: RetrievalQuery, memoryIds: string[], artifactIds:
 }
 
 export function prepareSessionPacket(input: PrepareSessionPacketInput): SessionPacket {
-  const taskType = classifyTaskType(input.prompt);
+  const taskType = classifyTaskType(input.prompt, input.policyInput?.routing);
   const route = recommendRoute(input.prompt, input.routeHints ?? []);
   const query: RetrievalQuery = {
     repoId: input.repoId,
@@ -130,10 +122,10 @@ export function prepareSessionPacket(input: PrepareSessionPacketInput): SessionP
 
   const maxMemories = input.maxMemories ?? 3;
   const maxArtifacts = input.maxArtifacts ?? 2;
-  const selectedMemories = rankMemories(query, input.memoryRecords)
+  const selectedMemories = rankMemories(query, input.memoryRecords, input.policyInput?.retrieval)
     .slice(0, maxMemories)
     .map((entry) => entry.record);
-  const selectedArtifacts = rankArtifacts(query, input.artifactRecords)
+  const selectedArtifacts = rankArtifacts(query, input.artifactRecords, input.policyInput?.retrieval)
     .slice(0, maxArtifacts)
     .map((entry) => entry.record);
 
@@ -149,7 +141,8 @@ export function prepareSessionPacket(input: PrepareSessionPacketInput): SessionP
       taskType,
       prompt: input.prompt,
       selectedMemories,
-      selectedArtifacts
+      selectedArtifacts,
+      policy: input.policyInput?.verification
     }),
     rationale: buildRationale(
       query,
