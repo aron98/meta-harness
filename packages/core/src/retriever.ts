@@ -8,6 +8,16 @@ type RankableRecord = {
   createdAt: string;
 };
 
+export type RetrievalPolicyInput = {
+  repoMatchWeight?: number;
+  tagOverlapWeight?: number;
+  recentMaxBonus?: number;
+  recentHalfLifeDays?: number;
+  taskTypeWeight?: number;
+  outcomeWeight?: number;
+  taskLocalMemoryBonus?: number;
+};
+
 export type RetrievalReason =
   | 'repo-match'
   | 'task-type-match'
@@ -23,6 +33,15 @@ export type ScoredRetrieval<T> = {
 };
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
+const defaultRetrievalPolicy = {
+  repoMatchWeight: 10,
+  tagOverlapWeight: 3,
+  recentMaxBonus: 4,
+  recentHalfLifeDays: 7,
+  taskTypeWeight: 8,
+  outcomeWeight: 4,
+  taskLocalMemoryBonus: 1
+};
 const textTokenStopWords = new Set([
   'a',
   'an',
@@ -47,7 +66,11 @@ function tokenizeText(value: string): string[] {
     .filter((token) => token.length >= 3 && !textTokenStopWords.has(token));
 }
 
-function getRecencyBonus(createdAt: string, referenceTime: string | undefined): number {
+function resolveRetrievalPolicy(policy: RetrievalPolicyInput | undefined): Required<RetrievalPolicyInput> {
+  return { ...defaultRetrievalPolicy, ...policy };
+}
+
+function getRecencyBonus(createdAt: string, referenceTime: string | undefined, policy: Required<RetrievalPolicyInput>): number {
   if (referenceTime === undefined) {
     return 0;
   }
@@ -58,10 +81,14 @@ function getRecencyBonus(createdAt: string, referenceTime: string | undefined): 
     return 0;
   }
 
-  return Math.max(0, 4 - Math.min(4, ageInDays / 7));
+  return Math.max(0, policy.recentMaxBonus - Math.min(policy.recentMaxBonus, ageInDays / policy.recentHalfLifeDays));
 }
 
-function scoreShared(query: RetrievalQuery, record: RankableRecord): ScoredRetrieval<RankableRecord> {
+function scoreShared(
+  query: RetrievalQuery,
+  record: RankableRecord,
+  policy: Required<RetrievalPolicyInput>
+): ScoredRetrieval<RankableRecord> {
   const reasons: RetrievalReason[] = [];
   const recordTags = normalizeTags(record.tags);
   const queryTags = new Set(normalizeTags(query.tags));
@@ -69,18 +96,18 @@ function scoreShared(query: RetrievalQuery, record: RankableRecord): ScoredRetri
   let score = 0;
 
   if (record.repoId === query.repoId) {
-    score += 10;
+    score += policy.repoMatchWeight;
     reasons.push('repo-match');
   }
 
   const sharedTagCount = recordTags.filter((tag) => queryTags.has(tag)).length;
 
   if (sharedTagCount > 0) {
-    score += sharedTagCount * 3;
+    score += sharedTagCount * policy.tagOverlapWeight;
     reasons.push('tag-overlap');
   }
 
-  const recencyBonus = getRecencyBonus(record.createdAt, query.referenceTime);
+  const recencyBonus = getRecencyBonus(record.createdAt, query.referenceTime, policy);
 
   if (recencyBonus > 0) {
     score += recencyBonus;
@@ -94,8 +121,13 @@ function compareRank<T>(left: ScoredRetrieval<T>, right: ScoredRetrieval<T>): nu
   return right.score - left.score;
 }
 
-export function rankMemories(queryInput: RetrievalQuery, memories: readonly MemoryRecord[]): ScoredRetrieval<MemoryRecord>[] {
+export function rankMemories(
+  queryInput: RetrievalQuery,
+  memories: readonly MemoryRecord[],
+  policyInput?: RetrievalPolicyInput
+): ScoredRetrieval<MemoryRecord>[] {
   const query = parseRetrievalQuery(queryInput);
+  const policy = resolveRetrievalPolicy(policyInput);
 
   return memories
     .map((record) => {
@@ -103,13 +135,13 @@ export function rankMemories(queryInput: RetrievalQuery, memories: readonly Memo
         repoId: record.repoId,
         tags: [record.kind, record.scope, ...record.sourceArtifactIds, ...tokenizeText(record.value)],
         createdAt: record.updatedAt
-      });
+      }, policy);
 
       let score = shared.score;
       const reasons = [...shared.reasons];
 
       if (record.scope === 'task-local') {
-        score += 1;
+        score += policy.taskLocalMemoryBonus;
         reasons.push('scope-bonus');
       }
 
@@ -136,22 +168,27 @@ function hasTaskTypeMatch(queryTaskType: TaskType, record: ArtifactRecord): bool
   return record.taskType === queryTaskType;
 }
 
-export function rankArtifacts(queryInput: RetrievalQuery, artifacts: readonly ArtifactRecord[]): ScoredRetrieval<ArtifactRecord>[] {
+export function rankArtifacts(
+  queryInput: RetrievalQuery,
+  artifacts: readonly ArtifactRecord[],
+  policyInput?: RetrievalPolicyInput
+): ScoredRetrieval<ArtifactRecord>[] {
   const query = parseRetrievalQuery(queryInput);
+  const policy = resolveRetrievalPolicy(policyInput);
 
   return artifacts
     .map((record) => {
-      const shared = scoreShared(query, record);
+      const shared = scoreShared(query, record, policy);
       let score = shared.score;
       const reasons = [...shared.reasons];
 
       if (hasTaskTypeMatch(query.taskType, record)) {
-        score += 8;
+        score += policy.taskTypeWeight;
         reasons.push('task-type-match');
       }
 
       if (hasOutcomeMatch(query.preferredOutcome, record)) {
-        score += 4;
+        score += policy.outcomeWeight;
         reasons.push('outcome-match');
       }
 
