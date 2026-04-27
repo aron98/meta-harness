@@ -21,7 +21,41 @@ The same npm CLI supports `install` for first-time global setup, `doctor` to che
 - rank stored artifacts and memories for a retrieval query
 - prepare a session packet from stored history with selected evidence, a suggested route, and a verification checklist
 - evaluate retrieval-on versus retrieval-off packet generation over bundled benchmark fixtures
+- define and evaluate bounded candidate policies for local harness-evaluation experiments
 - generate fixture docs and schemas into `docs/generated`
+
+Candidate policies live in `packages/core/src/candidates/` and are intentionally bounded to retrieval weights, routing order/prompt mode, and verification toggles. The search loop tunes this small core-owned policy input over the current heuristics; adapter packages only pass compatible policy input through and do not own policy behavior. A baseline candidate looks like:
+
+```json
+{
+  "id": "baseline",
+  "label": "Baseline policy",
+  "createdAt": "2026-04-26T00:00:00.000Z",
+  "mutationIds": [],
+  "policy": {
+    "retrieval": {
+      "repoMatchWeight": 10,
+      "tagOverlapWeight": 3,
+      "recentMaxBonus": 4,
+      "recentHalfLifeDays": 7,
+      "taskTypeWeight": 8,
+      "outcomeWeight": 4,
+      "taskLocalMemoryBonus": 1
+    },
+    "routing": {
+      "taskTypeOrder": ["verification", "planning", "documentation", "fix", "codegen", "analysis"],
+      "buildPromptMode": "default"
+    },
+    "verification": {
+      "includeArtifactVerificationCommands": true,
+      "includeMemoryCommandHints": true,
+      "requirePromptClarificationOnUnclear": true
+    }
+  }
+}
+```
+
+Candidate-run artifacts are rooted under paths such as `data/candidate-runs/run-001/candidates/baseline/candidate.json`. The first local search path evaluates baseline plus bounded mutations on fixtures where `split === "train"`, computes a scalar score from packet completeness, route hit rate, checklist coverage, and a small selected-record penalty, then writes `run.json`, `selection.json`, summaries, and per-fixture traces. Held-out fixtures are evaluated only for the already selected winner and are recorded separately under `held-out/` without changing the search winner.
 
 ## Workspace layout
 
@@ -65,6 +99,7 @@ The CLI build prepares the required workspace package outputs first, so `pnpm --
 - `query-history` - rank stored memory and artifact history
 - `prepare-session` - build a session packet from stored history
 - `evaluate-packet` - compare retrieval-on versus retrieval-off packet quality
+- `run-candidate-search` - run bounded local candidate search and held-out winner validation
 
 For commands that accept structured input:
 

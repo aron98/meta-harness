@@ -4,7 +4,7 @@ This walkthrough uses the real built CLI contract and a temporary local data sto
 
 ## Scope of this guide
 
-This document covers the current shipped CLI walkthrough. It describes the `apps/cli` workflow for logging artifacts, promoting memory, querying history, preparing session packets, simulating runtime task lifecycle hooks, explicitly inspecting retrieval, compacting active task state, and evaluating packet quality.
+This document covers the current shipped CLI walkthrough. It describes the `apps/cli` workflow for logging artifacts, promoting memory, querying history, preparing session packets, simulating runtime task lifecycle hooks, explicitly inspecting retrieval, compacting active task state, evaluating packet quality, and running local candidate search.
 
 The shipped CLI also includes `build-fixture-artifacts` for generating `docs/generated` outputs, but that command is documented in `../commands/build-fixture-artifacts.md` rather than this walkthrough.
 
@@ -20,6 +20,8 @@ The shipped walkthrough below still uses the CLI directly, but host adapters now
 - `compactHostSession()` wraps compaction summary creation
 
 Those helpers are now reused by the OpenCode adapter package and are intended to be reused by later Claude Code and Codex siblings under `packages/plugins/`. The optional `policyInput` seam passes through to `packages/core`, which still owns retrieval, routing, and verification behavior. Adapter observability records are written per operation under `data/runtime/adapter-events/<host-id>/<repo-id>/<task-id>/<operation>.json`.
+
+Candidate evaluation helpers also write local, reproducible artifacts under `data/candidate-runs/<run-id>/`. A candidate directory stores `candidate.json`, an inspection-only `candidate.policy.ts` snapshot, split summaries, and per-fixture traces, for example `data/candidate-runs/run-001/candidates/baseline/search/fixtures/fixture-001.json`. The current search helper evaluates only fixtures marked `split === "train"`; held-out fixtures are evaluated afterward only for the selected winner and saved under `held-out/`.
 
 ## Prerequisites
 
@@ -229,6 +231,33 @@ The next line is a JSON object with:
 - `summary.comparison`: delta metrics between the two modes
 
 Add `--json` to emit a single machine-readable payload: `{ evaluation, warnings }`.
+
+## 10. Run candidate search
+
+```bash
+cat > "$DATA_ROOT/candidate-run.json" <<'EOF'
+{"runId":"candidate-smoke","referenceTime":"2026-04-26T12:00:00.000Z","maxMemories":2,"maxArtifacts":2}
+EOF
+node apps/cli/dist/index.js run-candidate-search --data-root "$DATA_ROOT" --input-file "$DATA_ROOT/candidate-run.json"
+```
+
+Expected output starts with:
+
+```text
+Candidate search run candidate-smoke
+Winner: baseline (score 0.95)
+```
+
+Scores depend on stored local history and bundled fixtures. The command writes:
+
+- `data/candidate-runs/candidate-smoke/run.json`
+- `data/candidate-runs/candidate-smoke/selection.json`
+- `data/candidate-runs/candidate-smoke/candidates/<candidate-id>/candidate.json`
+- `data/candidate-runs/candidate-smoke/candidates/<candidate-id>/candidate.policy.ts`
+- search summaries and traces under `search/`
+- selected-winner validation summaries and traces under `held-out/`
+
+Add `--json` to emit a single machine-readable payload: `{ search, heldOut, warnings, paths }`.
 
 ## Related docs
 

@@ -4,8 +4,9 @@ This page describes the current architecture that exists in the local repo today
 
 ## Package boundaries
 
-- `apps/cli` is the shipped command surface. It exposes the current commands for logging artifacts, promoting memory, querying history, preparing session packets, task start and task end bridge capture, retrieval inspection, session compaction, packet benchmark evaluation, and fixture artifact generation.
+- `apps/cli` is the shipped command surface. It exposes the current commands for logging artifacts, promoting memory, querying history, preparing session packets, task start and task end bridge capture, retrieval inspection, session compaction, packet benchmark evaluation, local candidate search, and fixture artifact generation.
 - `packages/core` is the architectural center. It owns the record schemas, storage helpers, retrieval and ranking logic, session packet preparation, runtime bridge types and helpers, compaction helpers, and packet evaluation logic.
+- `packages/core/src/candidates` defines the bounded candidate-policy contract for local harness-evaluation experiments, including typed candidate records, deterministic mutation metadata, safe candidate-run path helpers, train search, and selected-winner held-out validation.
 - `packages/fixtures` contains benchmark fixture definitions that feed packet evaluation.
 - `packages/plugin-core` now defines the first host-neutral adapter seam. In this slice it exposes shared adapter contract types, thin lifecycle orchestration helpers for task start, task end, retrieval inspection, and compaction, bounded adapter storage helpers for runtime and observability records, plus an optional `policyInput` boundary for future retrieval, routing, and verification tuning. It still does not own runtime policy.
 - `packages/plugins/opencode-meta-harness` is the first thin OpenCode adapter package. In this slice it parses OpenCode hook payloads, maps them into host-neutral inputs, and exposes an adapter factory that composes the shared `packages/plugin-core` helpers rather than owning policy itself.
@@ -83,6 +84,52 @@ The schema enforces the current scope rules:
 
 ## Retrieval query, ranking, and inspection
 
+### Candidate policy contract
+
+Candidate policy records are defined in `packages/core/src/candidates/candidate.ts`. The contract mirrors the existing retrieval, routing, and verification seams without adding arbitrary prompt rewrites or source edits. A baseline record is shaped as:
+
+```json
+{
+  "id": "baseline",
+  "label": "Baseline policy",
+  "createdAt": "2026-04-26T00:00:00.000Z",
+  "mutationIds": [],
+  "policy": {
+    "retrieval": {
+      "repoMatchWeight": 10,
+      "tagOverlapWeight": 3,
+      "recentMaxBonus": 4,
+      "recentHalfLifeDays": 7,
+      "taskTypeWeight": 8,
+      "outcomeWeight": 4,
+      "taskLocalMemoryBonus": 1
+    },
+    "routing": {
+      "taskTypeOrder": ["verification", "planning", "documentation", "fix", "codegen", "analysis"],
+      "buildPromptMode": "default"
+    },
+    "verification": {
+      "includeArtifactVerificationCommands": true,
+      "includeMemoryCommandHints": true,
+      "requirePromptClarificationOnUnclear": true
+    }
+  }
+}
+```
+
+`packages/core/src/candidates/mutation-catalog.ts` enumerates the current deterministic mutation records. `packages/core/src/candidates/candidate-policy.ts` projects candidates into the existing packet-preparation policy input so retrieval scoring, task classification, and verification checklist construction can be tuned without changing default behavior. `packages/core/src/candidates/candidate-paths.ts` keeps run artifacts under safe path segments such as `data/candidate-runs/run-001/candidates/baseline/candidate.json`.
+
+`packages/core/src/candidates/candidate-store.ts` persists candidate artifacts for later reproduction. Each candidate directory can contain:
+
+- `candidate.json` - the validated candidate config
+- `candidate.policy.ts` - a code-like snapshot for inspection only, not executable self-modifying code
+- `search/summary.json` and `search/fixtures/<fixture-id>.json` - train/search summaries and per-fixture traces
+- `held-out/summary.json` and `held-out/fixtures/<fixture-id>.json` - later validation summaries and traces
+
+Policy ownership remains in `packages/core`: adapters may pass the `retrieval`, `routing`, and `verification` sections through, but they must not fork or reinterpret the tuning rules.
+
+`packages/core/src/candidates/evaluate-candidate.ts` evaluates one candidate by reusing `evaluatePacketBenchmarks()` with the candidate policy threaded into packet preparation. `packages/core/src/candidates/search-objective.ts` owns the scalar score: packet completeness, route hit rate, and checklist coverage minus a small selected-record penalty. `packages/core/src/candidates/run-candidate-search.ts` filters supplied fixtures to `split === "train"`, evaluates baseline plus bounded mutations, persists run artifacts, and selects exactly one winner with deterministic tie-breaking. `packages/core/src/candidates/validate-held-out.ts` evaluates only that selected winner on `split === "held-out"` fixtures and records held-out metrics in `selection.json` without changing the winner.
+
 ### `RetrievalQuery`
 
 `RetrievalQuery` is defined in `packages/core/src/retrieval-query.ts`. It is the normalized retrieval request used by the ranking layer. The current fields are:
@@ -132,12 +179,12 @@ That keeps retrieval inspection separate from storage and separate from automati
 
 ## Host-neutral adapter seam in `packages/plugin-core`
 
-The new Task 1 seam in `packages/plugin-core` is intentionally thin:
+The adapter seam in `packages/plugin-core` is intentionally thin:
 
 - `adapter-policy-input.ts` defines a small optional `AdapterPolicyInput` with `retrieval`, `routing`, and `verification` sections only
 - `host-adapter-contract.ts` defines generic lifecycle operations for task start, task end, retrieval inspection, and compaction without naming any OpenCode-specific hooks or payloads
 - `create-host-session.ts`, `create-host-artifact.ts`, `inspect-host-retrieval.ts`, and `compact-host-session.ts` wrap the existing `packages/core` helpers instead of creating a second runtime pipeline
-- omitting `policyInput` remains the default path, which preserves compatibility with the current `packages/core` behavior because this slice does not move or reinterpret policy yet
+- omitting `policyInput` remains the default path, which preserves compatibility with the current `packages/core` behavior because adapter packages do not move or reinterpret policy
 
 This boundary exists so later host packages under `packages/plugins/` can translate host events into shared inputs without forking retrieval, routing, or verification ownership away from `packages/core`.
 
@@ -158,7 +205,7 @@ Architecturally, this is the boundary object between retrieval and runtime execu
 
 ### How `prepareSessionPacket()` fits in
 
-`prepareSessionPacket()` in `packages/core/src/prepare-session-packet.ts` is the current packet builder used by the Phase 1 CLI and reused by the runtime bridge helpers. It:
+`prepareSessionPacket()` in `packages/core/src/prepare-session-packet.ts` is the current packet builder used by the CLI and reused by the runtime bridge helpers. It:
 
 - classifies the prompt into a `taskType`
 - recommends a route from explicit hints or simple prompt heuristics
@@ -169,7 +216,7 @@ Architecturally, this is the boundary object between retrieval and runtime execu
 
 It also now accepts an optional adapter-facing `policyInput` seam, but the current implementation deliberately preserves the exact existing behavior when that input is omitted or supplied. `packages/plugin-core` passes this through so later adapters for OpenCode, Claude Code, or Codex can share the same boundary without moving policy ownership out of `packages/core`.
 
-That is why `SessionPacket` sits in the middle of both the shipped CLI flow and the newer Phase 2 bridge types.
+That is why `SessionPacket` sits in the middle of both the shipped CLI flow and the newer runtime bridge types.
 
 ### `createTaskStartContext()`
 

@@ -211,3 +211,38 @@ Evaluated 5 benchmark packet(s)
 Warnings for malformed stored records are printed as `warning: skipped ...` in human-readable mode.
 
 JSON mode returns `{ evaluation, warnings }`.
+
+## `run-candidate-search`
+
+Purpose: evaluate bounded candidate policies against bundled benchmark fixtures, select one winner on train fixtures, and validate that winner on held-out fixtures.
+
+Required flags:
+
+- `--data-root <path>`
+- one of `--input '<json>'` or `--input-file <path>`
+
+Sample `--input` JSON:
+
+```json
+{
+  "runId": "candidate-smoke",
+  "referenceTime": "2026-04-26T12:00:00.000Z",
+  "maxMemories": 2,
+  "maxArtifacts": 2
+}
+```
+
+Rough output shape:
+
+```text
+Candidate search run candidate-smoke
+Winner: baseline (score 0.95)
+Train fixtures: 1
+Held-out fixtures: 1
+Held-out score: 0.9
+Selection: ./tmp/store/data/candidate-runs/candidate-smoke/selection.json
+```
+
+The command writes `data/candidate-runs/<run-id>/run.json`, `selection.json`, candidate configs, search traces, and held-out traces under `--data-root`.
+
+JSON mode returns `{ search, heldOut, warnings, paths }`.
