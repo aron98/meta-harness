@@ -92,6 +92,57 @@ export { buildVerificationChecklist, type VerificationChecklistInput } from './v
 export { type SessionPacketRoute } from './session-packet';
 export { assertValidPathSegment, getArtifactRecordPath, getMemoryRecordPath, type MemoryRecordLocator } from './storage-paths';
 export { writeJsonFile } from './write-json-file';
+export {
+  candidateBuildPromptModeSchema,
+  candidatePolicySchema,
+  candidateRetrievalPolicySchema,
+  candidateRoutingPolicySchema,
+  candidateSchema,
+  candidateTaskTypeOrderSchema,
+  candidateVerificationPolicySchema,
+  parseCandidate,
+  type Candidate,
+  type CandidateBuildPromptMode,
+  type CandidatePolicy,
+  type CandidateRetrievalPolicy,
+  type CandidateRoutingPolicy,
+  type CandidateVerificationPolicy
+} from './candidates/candidate';
+export {
+  candidateMutationSchema,
+  enumerateCandidateMutations,
+  parseCandidateMutation,
+  type CandidateMutation
+} from './candidates/mutation-catalog';
+export {
+  getCandidateFixtureResultPath,
+  getCandidateManifestPath,
+  getCandidatePolicySnapshotPath,
+  getCandidateRunManifestPath,
+  getCandidateSearchSummaryPath,
+  getCandidateSelectionPath,
+  getCandidateValidationSummaryPath,
+  type CandidateEvaluationPartition
+} from './candidates/candidate-paths';
+export { createPrepareSessionPacketPolicyInput } from './candidates/candidate-policy';
+export { renderCandidatePolicySnapshot } from './candidates/render-candidate-policy';
+export {
+  writeCandidateArtifacts,
+  writeCandidateFixtureTrace,
+  writeCandidateSplitSummary,
+  type WriteCandidateArtifactsResult
+} from './candidates/candidate-store';
+export {
+  evaluateCandidate,
+  type CandidateBenchmarkFixture,
+  type CandidateEvaluationResult,
+  type CandidateEvaluationSummary,
+  type CandidateFixtureEvaluationTrace,
+  type EvaluateCandidateInput
+} from './candidates/evaluate-candidate';
+export { scoreCandidateSummary, selectCandidateSearchWinner } from './candidates/search-objective';
+export { runCandidateSearch, type CandidateSearchResult, type RunCandidateSearchInput } from './candidates/run-candidate-search';
+export { validateHeldOutCandidate, type ValidateHeldOutCandidateInput } from './candidates/validate-held-out';
 
 export const CORE_PACKAGE_NAME = '@meta-harness/core';
 
