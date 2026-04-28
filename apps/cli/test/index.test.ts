@@ -39,6 +39,7 @@ describe('renderHelp', () => {
     expect(renderHelp()).toContain('compact-session');
     expect(renderHelp()).toContain('query-history');
     expect(renderHelp()).toContain('prepare-session');
+    expect(renderHelp()).toContain('run-candidate-search');
   });
 });
 
@@ -292,5 +293,22 @@ describe('run', () => {
 
     expect(result).toEqual({ success: true, exitCode: 0, output: 'compact-001' });
     expect(compactSession).toHaveBeenCalledWith(['--data-root', '/tmp/store', '--input', '{}'], { log }, expect.any(Object));
+  });
+
+  it('dispatches run-candidate-search via injected command handler', async () => {
+    const log = vi.fn();
+    const runCandidateSearch = vi.fn().mockResolvedValue({
+      success: true,
+      exitCode: 0,
+      output: 'candidate-smoke'
+    });
+
+    const result = await run(['run-candidate-search', '--data-root', '/tmp/store', '--input', '{}'], { log }, {
+      error: vi.fn(),
+      runCandidateSearch
+    });
+
+    expect(result).toEqual({ success: true, exitCode: 0, output: 'candidate-smoke' });
+    expect(runCandidateSearch).toHaveBeenCalledWith(['--data-root', '/tmp/store', '--input', '{}'], { log }, expect.any(Object));
   });
 });

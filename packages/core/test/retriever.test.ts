@@ -120,4 +120,36 @@ describe('retriever', () => {
     expect(ranked.map((entry) => entry.record.id)).toEqual(['memory-text-match', 'memory-generic']);
     expect(ranked[0]?.reasons).toContain('tag-overlap');
   });
+
+  it('keeps current artifact scores when no policy is supplied and lets candidate weights change ranking', () => {
+    const artifacts = [
+      createArtifactRecord({ id: 'artifact-repo-match', tags: [], repoId: 'repo-a', taskType: 'analysis' }),
+      createArtifactRecord({ id: 'artifact-tag-match', tags: ['build', 'typescript'], repoId: 'repo-b', taskType: 'analysis' })
+    ];
+
+    expect(rankArtifacts(baseQuery, artifacts).map((entry) => entry.record.id)).toEqual([
+      'artifact-repo-match',
+      'artifact-tag-match'
+    ]);
+
+    expect(
+      rankArtifacts(baseQuery, artifacts, {
+        repoMatchWeight: 0,
+        tagOverlapWeight: 6
+      }).map((entry) => entry.record.id)
+    ).toEqual(['artifact-tag-match', 'artifact-repo-match']);
+  });
+
+  it('lets candidate task-local memory bonus change memory ranking', () => {
+    const memories = [
+      createMemoryRecord({ id: 'memory-repo', value: 'Fix TypeScript build summary', scope: 'repo-local' }),
+      createMemoryRecord({ id: 'memory-task', value: 'Generic task summary', scope: 'task-local', taskId: 'task-1' })
+    ];
+
+    expect(rankMemories(baseQuery, memories).map((entry) => entry.record.id)).toEqual(['memory-repo', 'memory-task']);
+    expect(rankMemories(baseQuery, memories, { taskLocalMemoryBonus: 20 }).map((entry) => entry.record.id)).toEqual([
+      'memory-task',
+      'memory-repo'
+    ]);
+  });
 });

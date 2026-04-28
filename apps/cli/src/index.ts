@@ -11,6 +11,7 @@ type LogArtifact = typeof import('./log-artifact').runLogArtifactCommand;
 type PromoteMemory = typeof import('./promote-memory').runPromoteMemoryCommand;
 type QueryHistory = typeof import('./query-history').runQueryHistoryCommand;
 type PrepareSession = typeof import('./prepare-session').runPrepareSessionCommand;
+type RunCandidateSearch = typeof import('./run-candidate-search').runCandidateSearchCommand;
 type TaskEnd = typeof import('./task-end').runTaskEndCommand;
 type TaskStart = typeof import('./task-start').runTaskStartCommand;
 
@@ -35,6 +36,7 @@ export function renderHelp() {
     '  query-history           Rank stored memory and artifact history',
     '  prepare-session         Build a session packet from stored history',
     '  evaluate-packet         Compare packet retrieval-on versus retrieval-off',
+    '  run-candidate-search    Evaluate bounded candidate policies locally',
     '',
     'Available workspace commands:',
     '  pnpm test',
@@ -56,6 +58,7 @@ export async function run(
       promoteMemory?: PromoteMemory;
       queryHistory?: QueryHistory;
       prepareSession?: PrepareSession;
+      runCandidateSearch?: RunCandidateSearch;
       taskEnd?: TaskEnd;
       taskStart?: TaskStart;
   } = {}
@@ -131,6 +134,11 @@ export async function run(
   if (args[0] === 'evaluate-packet') {
     const evaluatePacket = options.evaluatePacket ?? (await import('./evaluate-packet')).runEvaluatePacketCommand;
     return evaluatePacket(args.slice(1), stdout, options);
+  }
+
+  if (args[0] === 'run-candidate-search') {
+    const runCandidateSearch = options.runCandidateSearch ?? (await import('./run-candidate-search')).runCandidateSearchCommand;
+    return runCandidateSearch(args.slice(1), stdout, { error: options.error });
   }
 
   const error = formatCommandError('cli', `unknown command ${args[0]}`);

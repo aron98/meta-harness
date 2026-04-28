@@ -27,6 +27,7 @@ node apps/cli/dist/index.js <command> [...flags]
 - [`query-history`](./query-history.md), rank stored artifacts and memories for a retrieval query
 - [`prepare-session`](./prepare-session.md), build a session packet from stored history
 - [`evaluate-packet`](./evaluate-packet.md), compare retrieval-on and retrieval-off packet quality over bundled fixtures
+- [`run-candidate-search`](./run-candidate-search.md), evaluate bounded candidate policies and validate the selected winner
 
 ## Related docs
 

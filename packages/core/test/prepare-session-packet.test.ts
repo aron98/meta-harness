@@ -150,26 +150,33 @@ describe('prepareSessionPacket', () => {
     expect(packet.selectedMemoryIds).toEqual(['memory-build']);
   });
 
-  it('accepts adapter policy input without changing the default packet behavior', () => {
+  it('uses adapter policy input to tune retrieval, routing, and verification behavior', () => {
     const input = createInput('Implement a fix for the broken build and verify it.');
     const policyInput: PrepareSessionPacketPolicyInput = {
       retrieval: {
-        repoMatchWeight: 20,
+        repoMatchWeight: 0,
+        tagOverlapWeight: 10,
+        recentMaxBonus: 2,
         recentHalfLifeDays: 30,
+        taskTypeWeight: 2,
+        outcomeWeight: 1,
         taskLocalMemoryBonus: 4
       },
       routing: {
-        taskTypeOrder: ['fix', 'verification'],
-        buildPromptMode: 'prefer-codegen'
+        taskTypeOrder: ['fix', 'verification', 'codegen', 'documentation', 'planning', 'analysis'],
+        buildPromptMode: 'default'
       },
       verification: {
-        includeArtifactVerificationCommands: true,
+        includeArtifactVerificationCommands: false,
         includeMemoryCommandHints: false,
-        requirePromptClarificationOnUnclear: true
+        requirePromptClarificationOnUnclear: false
       }
     };
 
-    expect(prepareSessionPacket({ ...input, policyInput })).toEqual(prepareSessionPacket(input));
+    const packet = prepareSessionPacket({ ...input, prompt: 'Fix and verify the broken build.', policyInput });
+
+    expect(packet.taskType).toBe('fix');
+    expect(packet.verificationChecklist.join('\n')).not.toMatch(/pnpm build/i);
   });
 
   it('preserves current behavior when policy input is omitted', () => {
