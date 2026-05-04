@@ -11,6 +11,7 @@ node apps/cli/dist/index.js <command> [...flags]
 ## Shared conventions
 
 - Commands that accept structured input take either `--input '<json>'` or `--input-file /path/to/input.json`.
+- File paths inside command input JSON are resolved relative to the current working directory unless a command says otherwise.
 - Add `--json` when you want machine-readable output instead of the default summary lines.
 - Human-readable warnings use the `warning:` prefix.
 - Command failures use `error: <command> failed: ...`.
@@ -28,6 +29,24 @@ node apps/cli/dist/index.js <command> [...flags]
 - [`prepare-session`](./prepare-session.md), build a session packet from stored history
 - [`evaluate-packet`](./evaluate-packet.md), compare retrieval-on and retrieval-off packet quality over bundled fixtures
 - [`run-candidate-search`](./run-candidate-search.md), evaluate bounded candidate policies and validate the selected winner
+- [`export-candidate-policy`](./export-candidate-policy.md), export the selected candidate policy to a runtime artifact without mutating user config
+
+## Candidate optimization examples
+
+Use the example bundle from the repo root after building the CLI:
+
+```bash
+node apps/cli/dist/index.js run-candidate-search \
+  --data-root ./tmp/candidate-optimization-store \
+  --input-file ./docs/examples/candidate-optimization/input.json
+
+node apps/cli/dist/index.js export-candidate-policy \
+  --data-root ./tmp/candidate-optimization-store \
+  --run-id docs-candidate-optimization \
+  --output-file ./tmp/candidate-optimization-store/winner-policy.json
+```
+
+The export command writes only `winner-policy.json`. Applying that policy to OpenCode or another runtime is a separate, explicit action.
 
 ## Related docs
 
