@@ -1,11 +1,24 @@
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+
 import { benchmarkFixtures } from '@meta-harness/fixtures';
 import {
   getCandidateSelectionPath,
+  isoDatetimeSchema,
+  parseCandidate,
+  parseCandidateBenchmarkFixtures,
+  parseCandidateMutation,
+  parseCandidateSearchConfig,
+  parseCandidateObjectiveConfig,
   runCandidateSearch,
   validateHeldOutCandidate,
   type ArtifactRecord,
+  type Candidate,
   type CandidateBenchmarkFixture,
   type CandidateEvaluationResult,
+  type CandidateMutation,
+  type CandidateObjectiveConfigInput,
+  type CandidateSearchConfigInput,
   type CandidateSearchResult,
   type MemoryRecord
 } from '@meta-harness/core';
@@ -25,6 +38,19 @@ export type CandidateSearchCommandInput = {
   referenceTime?: string;
   maxMemories?: number;
   maxArtifacts?: number;
+  fixturesFile?: string;
+  candidatesFile?: string;
+  mutationsFile?: string;
+  searchConfigFile?: string;
+  objectiveFile?: string;
+};
+
+type LoadedCandidateSearchConfig = {
+  fixtures?: CandidateBenchmarkFixture[];
+  candidates?: Candidate[];
+  mutations?: CandidateMutation[];
+  searchConfig?: CandidateSearchConfigInput;
+  objectiveConfig?: CandidateObjectiveConfigInput;
 };
 
 type CandidateSearchCommandPayload = {
@@ -61,13 +87,25 @@ function normalizeLoadedRecords<T>(loaded: LoadedRecords<T> | T[]): LoadedRecord
   return Array.isArray(loaded) ? { records: loaded, warnings: [] } : loaded;
 }
 
-function parsePositiveInteger(value: unknown, label: string): number | undefined {
+function parseNonNegativeInteger(value: unknown, label: string): number | undefined {
   if (value === undefined) {
     return undefined;
   }
 
-  if (!Number.isInteger(value) || typeof value !== 'number' || value <= 0) {
-    throw new Error(`${label} must be a positive integer`);
+  if (!Number.isInteger(value) || typeof value !== 'number' || value < 0) {
+    throw new Error(`${label} must be a non-negative integer`);
+  }
+
+  return value;
+}
+
+function parseOptionalFilePath(value: unknown, label: string): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    throw new Error(`${label} must be a non-empty string`);
   }
 
   return value;
@@ -82,16 +120,67 @@ function parseCandidateSearchCommandInput(input: string): CandidateSearchCommand
     throw new Error('runId must be a non-empty string');
   }
 
-  if (referenceTime !== undefined && (typeof referenceTime !== 'string' || Number.isNaN(Date.parse(referenceTime)))) {
+  if (referenceTime !== undefined && (typeof referenceTime !== 'string' || !isoDatetimeSchema.safeParse(referenceTime).success)) {
     throw new Error('referenceTime must be an ISO datetime string');
   }
 
   return {
     runId,
     referenceTime,
-    maxMemories: parsePositiveInteger(parsed.maxMemories, 'maxMemories'),
-    maxArtifacts: parsePositiveInteger(parsed.maxArtifacts, 'maxArtifacts')
+    maxMemories: parseNonNegativeInteger(parsed.maxMemories, 'maxMemories'),
+    maxArtifacts: parseNonNegativeInteger(parsed.maxArtifacts, 'maxArtifacts'),
+    fixturesFile: parseOptionalFilePath(parsed.fixturesFile, 'fixturesFile'),
+    candidatesFile: parseOptionalFilePath(parsed.candidatesFile, 'candidatesFile'),
+    mutationsFile: parseOptionalFilePath(parsed.mutationsFile, 'mutationsFile'),
+    searchConfigFile: parseOptionalFilePath(parsed.searchConfigFile, 'searchConfigFile'),
+    objectiveFile: parseOptionalFilePath(parsed.objectiveFile, 'objectiveFile')
   };
+}
+
+async function loadJsonFile(filePath: string): Promise<unknown> {
+  return JSON.parse(await readFile(resolve(filePath), 'utf8'));
+}
+
+async function loadCandidateSearchConfigFiles(input: CandidateSearchCommandInput): Promise<LoadedCandidateSearchConfig> {
+  const loaded: LoadedCandidateSearchConfig = {};
+
+  if (input.mutationsFile !== undefined && input.searchConfigFile !== undefined) {
+    throw new Error('provide either mutationsFile or searchConfigFile, not both');
+  }
+
+  if (input.fixturesFile !== undefined) {
+    loaded.fixtures = parseCandidateBenchmarkFixtures(await loadJsonFile(input.fixturesFile));
+  }
+
+  if (input.candidatesFile !== undefined) {
+    const candidates = await loadJsonFile(input.candidatesFile);
+
+    if (!Array.isArray(candidates)) {
+      throw new Error('candidatesFile must contain a JSON array');
+    }
+
+    loaded.candidates = candidates.map(parseCandidate);
+  }
+
+  if (input.mutationsFile !== undefined) {
+    const mutations = await loadJsonFile(input.mutationsFile);
+
+    if (!Array.isArray(mutations)) {
+      throw new Error('mutationsFile must contain a JSON array');
+    }
+
+    loaded.mutations = mutations.map(parseCandidateMutation);
+  }
+
+  if (input.searchConfigFile !== undefined) {
+    loaded.searchConfig = parseCandidateSearchConfig(await loadJsonFile(input.searchConfigFile));
+  }
+
+  if (input.objectiveFile !== undefined) {
+    loaded.objectiveConfig = parseCandidateObjectiveConfig(await loadJsonFile(input.objectiveFile));
+  }
+
+  return loaded;
 }
 
 function renderHumanPayload(payload: CandidateSearchCommandPayload): string {
@@ -147,8 +236,10 @@ export async function runCandidateSearchCommand(
     const memoryRecords = loadedMemories.records;
     const artifactRecords = loadedArtifacts.records;
     const warnings = [...loadedMemories.warnings, ...loadedArtifacts.warnings];
-    const fixtures = options.benchmarkFixtures ?? benchmarkFixtures;
-    const search = await runSearch({
+    const loadedConfig = await loadCandidateSearchConfigFiles(input);
+    const fixtures = loadedConfig.fixtures ?? options.benchmarkFixtures ?? benchmarkFixtures;
+    const searchConfig = loadedConfig.searchConfig ?? (loadedConfig.mutations === undefined ? undefined : { mutations: loadedConfig.mutations });
+    const searchInput = {
       dataRoot: resolvedDataRoot,
       runId: input.runId,
       fixtures,
@@ -156,9 +247,13 @@ export async function runCandidateSearchCommand(
       artifactRecords,
       referenceTime,
       maxMemories: input.maxMemories,
-      maxArtifacts: input.maxArtifacts
-    });
-    const heldOut = await validateHeldOut({
+      maxArtifacts: input.maxArtifacts,
+      ...(loadedConfig.candidates === undefined ? {} : { candidates: loadedConfig.candidates }),
+      ...(searchConfig === undefined ? {} : { searchConfig }),
+      ...(loadedConfig.objectiveConfig === undefined ? {} : { objectiveConfig: loadedConfig.objectiveConfig })
+    };
+    const search = await runSearch(searchInput);
+    const heldOutInput = {
       dataRoot: resolvedDataRoot,
       runId: input.runId,
       candidate: search.winner.candidate,
@@ -168,8 +263,10 @@ export async function runCandidateSearchCommand(
       referenceTime,
       maxMemories: input.maxMemories,
       maxArtifacts: input.maxArtifacts,
-      selection: search.winner
-    });
+      selection: search.winner,
+      ...(loadedConfig.objectiveConfig === undefined ? {} : { objectiveConfig: loadedConfig.objectiveConfig })
+    };
+    const heldOut = await validateHeldOut(heldOutInput);
     const paths = {
       selection: getCandidateSelectionPath(resolvedDataRoot, input.runId)
     };
