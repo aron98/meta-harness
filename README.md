@@ -55,7 +55,9 @@ Candidate policies live in `packages/core/src/candidates/` and are intentionally
 }
 ```
 
-Candidate-run artifacts are rooted under paths such as `data/candidate-runs/run-001/candidates/baseline/candidate.json`. The first local search path evaluates baseline plus bounded mutations on fixtures where `split === "train"`, computes a scalar score from packet completeness, route hit rate, checklist coverage, and a small selected-record penalty, then writes `run.json`, `selection.json`, summaries, and per-fixture traces. Held-out fixtures are evaluated only for the already selected winner and are recorded separately under `held-out/` without changing the search winner.
+Candidate-run artifacts are rooted under paths such as `data/candidate-runs/run-001/candidates/baseline/candidate.json`. The local search path can use bundled defaults or file-backed fixtures, explicit candidates, mutation catalogs, and objective weights. It evaluates only fixtures where `split === "train"` when selecting a winner, computes a scalar score from packet completeness, route hit rate, checklist coverage, optional expected-tag weight, and selected-record or command penalties, then writes `run.json`, `selection.json`, summaries, and per-fixture traces. Held-out fixtures are evaluated only for the already selected winner and are recorded separately under `held-out/` without changing the search winner.
+
+Runnable candidate-search examples live in [`docs/examples/candidate-optimization`](./docs/examples/candidate-optimization). From the repo root, build the CLI, run `run-candidate-search` with `input.json`, then run `export-candidate-policy` to write the selected policy artifact. The export command writes only the requested artifact file and never mutates OpenCode or user config; applying an exported policy is a separate action.
 
 ## Workspace layout
 
@@ -100,6 +102,7 @@ The CLI build prepares the required workspace package outputs first, so `pnpm --
 - `prepare-session` - build a session packet from stored history
 - `evaluate-packet` - compare retrieval-on versus retrieval-off packet quality
 - `run-candidate-search` - run bounded local candidate search and held-out winner validation
+- `export-candidate-policy` - export the selected candidate policy as a runtime artifact without mutating user config
 
 For commands that accept structured input:
 
