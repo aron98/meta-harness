@@ -1,5 +1,13 @@
 # @meta-harness/opencode-meta-harness
 
+## 0.3.2
+
+### Patch Changes
+
+- Updated dependencies [d23ed7d]
+  - @meta-harness/core@0.2.0
+  - @meta-harness/plugin-core@0.1.1
+
 ## 0.3.1
 
 ### Patch Changes
