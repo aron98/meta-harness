@@ -3,6 +3,7 @@ import { z } from 'zod';
 export {
   fixtureIdSchema,
   fixtureAuthoringSchema,
+  isoDatetimeSchema,
   fixtureRouteSchema,
   parseFixtureAuthoringSchema,
   repoMaturitySchema,
@@ -94,6 +95,7 @@ export { assertValidPathSegment, getArtifactRecordPath, getMemoryRecordPath, typ
 export { writeJsonFile } from './write-json-file';
 export {
   candidateBuildPromptModeSchema,
+  candidateContextPolicySchema,
   candidatePolicySchema,
   candidateRetrievalPolicySchema,
   candidateRoutingPolicySchema,
@@ -103,6 +105,7 @@ export {
   parseCandidate,
   type Candidate,
   type CandidateBuildPromptMode,
+  type CandidateContextPolicy,
   type CandidatePolicy,
   type CandidateRetrievalPolicy,
   type CandidateRoutingPolicy,
@@ -114,6 +117,14 @@ export {
   parseCandidateMutation,
   type CandidateMutation
 } from './candidates/mutation-catalog';
+export {
+  candidateSearchConfigSchema,
+  generateCandidateSearchCandidates,
+  parseCandidateSearchConfig,
+  type CandidateSearchConfig,
+  type CandidateSearchConfigInput,
+  type GenerateCandidateSearchCandidatesInput
+} from './candidates/search-config';
 export {
   getCandidateFixtureResultPath,
   getCandidateManifestPath,
@@ -134,15 +145,32 @@ export {
 } from './candidates/candidate-store';
 export {
   evaluateCandidate,
+  candidateBenchmarkFixtureSchema,
+  parseCandidateBenchmarkFixtures,
   type CandidateBenchmarkFixture,
   type CandidateEvaluationResult,
   type CandidateEvaluationSummary,
   type CandidateFixtureEvaluationTrace,
   type EvaluateCandidateInput
 } from './candidates/evaluate-candidate';
+export {
+  candidateObjectiveConfigSchema,
+  parseCandidateObjectiveConfig,
+  scoreCandidateObjective,
+  type CandidateObjectiveConfig,
+  type CandidateObjectiveConfigInput,
+  type CandidateObjectiveScore,
+  type CandidateScoreContributions
+} from './candidates/objective-config';
 export { scoreCandidateSummary, selectCandidateSearchWinner } from './candidates/search-objective';
 export { runCandidateSearch, type CandidateSearchResult, type RunCandidateSearchInput } from './candidates/run-candidate-search';
 export { validateHeldOutCandidate, type ValidateHeldOutCandidateInput } from './candidates/validate-held-out';
+export {
+  exportCandidatePolicy,
+  type ExportCandidatePolicyInput,
+  type ExportCandidatePolicyResult,
+  type ExportedCandidatePolicyArtifact
+} from './candidates/export-candidate-policy';
 
 export const CORE_PACKAGE_NAME = '@meta-harness/core';
 
