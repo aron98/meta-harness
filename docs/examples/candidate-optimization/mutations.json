@@ -1,0 +1,23 @@
+[
+  {
+    "id": "docs-routing-verification-first",
+    "label": "Prefer verification routing first",
+    "section": "routing",
+    "field": "taskTypeOrder",
+    "value": ["verification", "fix", "codegen", "documentation", "planning", "analysis"]
+  },
+  {
+    "id": "docs-retrieval-tag-overlap-high",
+    "label": "Increase tag overlap retrieval weight",
+    "section": "retrieval",
+    "field": "tagOverlapWeight",
+    "value": 6
+  },
+  {
+    "id": "docs-verification-memory-hints-off",
+    "label": "Omit memory command hints",
+    "section": "verification",
+    "field": "includeMemoryCommandHints",
+    "value": false
+  }
+]

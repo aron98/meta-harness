@@ -1,0 +1,9 @@
+{
+  "runId": "docs-candidate-optimization",
+  "referenceTime": "2026-05-04T12:00:00.000Z",
+  "maxMemories": 2,
+  "maxArtifacts": 2,
+  "fixturesFile": "./docs/examples/candidate-optimization/fixtures.json",
+  "searchConfigFile": "./docs/examples/candidate-optimization/search-config.json",
+  "objectiveFile": "./docs/examples/candidate-optimization/objective.json"
+}

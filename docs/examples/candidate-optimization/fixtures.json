@@ -1,0 +1,36 @@
+[
+  {
+    "id": "docs-train-verify-build",
+    "title": "Train fixture for verification routing",
+    "prompt": "Verify the package build and report exact command evidence before saying it passed.",
+    "route": "verify",
+    "split": "train",
+    "repo": {
+      "id": "repo-alpha",
+      "maturity": "active"
+    },
+    "routeHints": ["verify"],
+    "checklistHints": [
+      "Run pnpm build.",
+      "Capture the exact verification command results and status."
+    ],
+    "tags": ["build", "verification"]
+  },
+  {
+    "id": "docs-held-out-plan-release",
+    "title": "Held-out fixture for release planning",
+    "prompt": "Plan the release checklist and call out which verification commands need fresh evidence.",
+    "route": "plan",
+    "split": "held-out",
+    "repo": {
+      "id": "repo-alpha",
+      "maturity": "active"
+    },
+    "routeHints": ["plan", "verify"],
+    "checklistHints": [
+      "List release checks before implementation work.",
+      "Run pnpm test before reporting success."
+    ],
+    "tags": ["release", "test"]
+  }
+]

@@ -1,0 +1,63 @@
+[
+  {
+    "id": "docs-baseline",
+    "label": "Docs baseline policy",
+    "createdAt": "2026-05-04T12:00:00.000Z",
+    "mutationIds": [],
+    "policy": {
+      "retrieval": {
+        "repoMatchWeight": 10,
+        "tagOverlapWeight": 3,
+        "recentMaxBonus": 4,
+        "recentHalfLifeDays": 7,
+        "taskTypeWeight": 8,
+        "outcomeWeight": 4,
+        "taskLocalMemoryBonus": 1
+      },
+      "routing": {
+        "taskTypeOrder": ["verification", "planning", "documentation", "fix", "codegen", "analysis"],
+        "buildPromptMode": "default"
+      },
+      "verification": {
+        "includeArtifactVerificationCommands": true,
+        "includeMemoryCommandHints": true,
+        "requirePromptClarificationOnUnclear": true
+      },
+      "context": {
+        "maxMemories": 2,
+        "maxArtifacts": 2
+      }
+    }
+  },
+  {
+    "id": "docs-verification-focused",
+    "label": "Docs verification focused policy",
+    "baseCandidateId": "docs-baseline",
+    "createdAt": "2026-05-04T12:00:00.000Z",
+    "mutationIds": ["docs-routing-verification-first", "docs-retrieval-tag-overlap-high"],
+    "policy": {
+      "retrieval": {
+        "repoMatchWeight": 10,
+        "tagOverlapWeight": 6,
+        "recentMaxBonus": 4,
+        "recentHalfLifeDays": 7,
+        "taskTypeWeight": 8,
+        "outcomeWeight": 4,
+        "taskLocalMemoryBonus": 1
+      },
+      "routing": {
+        "taskTypeOrder": ["verification", "fix", "codegen", "documentation", "planning", "analysis"],
+        "buildPromptMode": "prefer-verification"
+      },
+      "verification": {
+        "includeArtifactVerificationCommands": true,
+        "includeMemoryCommandHints": false,
+        "requirePromptClarificationOnUnclear": true
+      },
+      "context": {
+        "maxMemories": 0,
+        "maxArtifacts": 2
+      }
+    }
+  }
+]

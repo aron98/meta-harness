@@ -1,0 +1,8 @@
+{
+  "packetCompletenessWeight": 1,
+  "routeHitRateWeight": 1.5,
+  "verificationChecklistCoverageWeight": 1,
+  "expectedTagHitRateWeight": 0.25,
+  "selectedRecordPenalty": 0.01,
+  "selectedCommandPenalty": 0.02
+}
