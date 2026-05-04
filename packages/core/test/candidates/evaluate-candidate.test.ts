@@ -82,4 +82,153 @@ describe('evaluateCandidate', () => {
 
     expect(result.fixtures[0]?.packet.selectedMemoryIds).toEqual(['memory-retry-second']);
   });
+
+  it('uses candidate context limits before run-level limits', () => {
+    const candidateWithNoContextRecords = {
+      ...baselineCandidate,
+      policy: {
+        ...baselineCandidate.policy,
+        context: {
+          maxMemories: 0,
+          maxArtifacts: 0
+        }
+      }
+    };
+
+    const result = evaluateCandidate({
+      candidate: candidateWithNoContextRecords,
+      split: 'search',
+      fixtures: [
+        {
+          id: 'implement-retry',
+          title: 'Implement retry helper',
+          prompt: 'Implement a retry helper for flaky network calls.',
+          route: 'implement',
+          split: 'train',
+          repo: { id: 'repo-a', maturity: 'active' },
+          routeHints: ['implement'],
+          checklistHints: ['Run pnpm test'],
+          tags: ['retry']
+        }
+      ],
+      memoryRecords: [
+        {
+          id: 'memory-retry',
+          scope: 'repo-local',
+          repoId: 'repo-a',
+          kind: 'summary',
+          value: 'Retry implementations should run pnpm test.',
+          source: 'human-input',
+          sourceArtifactIds: [],
+          confidence: 'high',
+          createdAt: '2026-04-21T00:00:00.000Z',
+          updatedAt: '2026-04-21T00:00:00.000Z'
+        }
+      ],
+      artifactRecords: [
+        {
+          id: 'artifact-retry',
+          repoId: 'repo-a',
+          taskId: 'implement-retry-artifact',
+          taskType: 'codegen',
+          outcome: 'success',
+          promptSummary: 'Retry helper implementation with pnpm test verification.',
+          tags: ['retry'],
+          filesInspected: ['src/retry.ts'],
+          filesChanged: ['src/retry.ts'],
+          commands: ['pnpm test'],
+          diagnostics: [],
+          verification: ['pnpm test'],
+          createdAt: '2026-04-21T00:00:00.000Z'
+        }
+      ],
+      referenceTime: '2026-04-26T00:00:00.000Z',
+      maxMemories: 1,
+      maxArtifacts: 1
+    });
+
+    expect(result.fixtures[0]?.packet.selectedMemoryIds).toEqual([]);
+    expect(result.fixtures[0]?.packet.selectedArtifactIds).toEqual([]);
+  });
+
+  it('records richer per-fixture trace evidence for candidate decisions', () => {
+    const result = evaluateCandidate({
+      candidate: baselineCandidate,
+      split: 'search',
+      fixtures: [
+        {
+          id: 'implement-retry',
+          title: 'Implement retry helper',
+          prompt: 'Implement a retry helper for flaky network calls.',
+          route: 'implement',
+          split: 'train',
+          repo: { id: 'repo-a', maturity: 'active' },
+          routeHints: ['implement'],
+          checklistHints: ['Run pnpm test'],
+          tags: ['retry']
+        }
+      ],
+      memoryRecords: [
+        {
+          id: 'memory-retry',
+          scope: 'repo-local',
+          repoId: 'repo-a',
+          kind: 'summary',
+          value: 'Retry implementations should run pnpm test.',
+          source: 'human-input',
+          sourceArtifactIds: [],
+          confidence: 'high',
+          createdAt: '2026-04-21T00:00:00.000Z',
+          updatedAt: '2026-04-21T00:00:00.000Z'
+        }
+      ],
+      artifactRecords: [
+        {
+          id: 'artifact-retry',
+          repoId: 'repo-a',
+          taskId: 'implement-retry-artifact',
+          taskType: 'codegen',
+          outcome: 'success',
+          promptSummary: 'Retry helper implementation with pnpm test verification.',
+          tags: ['retry'],
+          filesInspected: ['src/retry.ts'],
+          filesChanged: ['src/retry.ts'],
+          commands: ['pnpm test'],
+          diagnostics: [],
+          verification: ['pnpm test'],
+          createdAt: '2026-04-21T00:00:00.000Z'
+        }
+      ],
+      referenceTime: '2026-04-26T00:00:00.000Z',
+      maxMemories: 1,
+      maxArtifacts: 1
+    });
+
+    expect(result.fixtures[0]).toMatchObject({
+      selectedMemoryIds: ['memory-retry'],
+      selectedArtifactIds: ['artifact-retry'],
+      selectedRecordIds: ['memory-retry', 'artifact-retry'],
+      selectedCommandCount: 1,
+      routeDecision: {
+        expected: 'implement',
+        actual: 'implement',
+        hit: true
+      },
+      expectedTagHitRate: 1,
+      effectivePolicy: {
+        context: {
+          maxMemories: 1,
+          maxArtifacts: 1
+        }
+      }
+    });
+    expect(result.fixtures[0]?.scoreContributions).toEqual({
+      packetCompleteness: 1,
+      routeHitRate: 1,
+      verificationChecklistCoverage: 1,
+      expectedTagHitRate: 0,
+      selectedRecordPenalty: -0.02,
+      selectedCommandPenalty: 0
+    });
+  });
 });
