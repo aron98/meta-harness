@@ -1,22 +1,23 @@
 import type { CandidateEvaluationResult, CandidateEvaluationSummary } from './evaluate-candidate';
+import { scoreCandidateObjective, type CandidateObjectiveConfigInput } from './objective-config';
 
-export function scoreCandidateSummary(summary: CandidateEvaluationSummary): number {
-  const quality =
-    summary.metrics.packetCompleteness +
-    summary.metrics.routeHitRate +
-    summary.metrics.verificationChecklistCoverage;
-  const selectedRecordPenalty = summary.metrics.selectedRecordCount * 0.01;
-
-  return Number((quality - selectedRecordPenalty).toFixed(3));
+export function scoreCandidateSummary(
+  summary: CandidateEvaluationSummary,
+  objectiveConfig: CandidateObjectiveConfigInput = {}
+): number {
+  return scoreCandidateObjective(summary, objectiveConfig).score;
 }
 
-export function selectCandidateSearchWinner(results: readonly CandidateEvaluationResult[]): CandidateEvaluationResult {
+export function selectCandidateSearchWinner(
+  results: readonly CandidateEvaluationResult[],
+  objectiveConfig: CandidateObjectiveConfigInput = {}
+): CandidateEvaluationResult {
   if (results.length === 0) {
     throw new Error('candidate search requires at least one result');
   }
 
-  return [...results].sort((left, right) => {
-    const scoreDelta = scoreCandidateSummary(right.summary) - scoreCandidateSummary(left.summary);
+  const winner = [...results].sort((left, right) => {
+    const scoreDelta = scoreCandidateSummary(right.summary, objectiveConfig) - scoreCandidateSummary(left.summary, objectiveConfig);
 
     if (scoreDelta !== 0) {
       return scoreDelta;
@@ -30,4 +31,14 @@ export function selectCandidateSearchWinner(results: readonly CandidateEvaluatio
 
     return left.candidateId.localeCompare(right.candidateId);
   })[0];
+  const objective = scoreCandidateObjective(winner.summary, objectiveConfig);
+
+  return {
+    ...winner,
+    summary: {
+      ...winner.summary,
+      score: objective.score,
+      scoreContributions: objective.contributions
+    }
+  };
 }
