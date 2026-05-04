@@ -5,6 +5,7 @@ import { getCandidateSelectionPath } from './candidate-paths';
 import { evaluateCandidate, type CandidateBenchmarkFixture, type CandidateEvaluationResult } from './evaluate-candidate';
 import { writeCandidateFixtureTrace, writeCandidateSplitSummary } from './candidate-store';
 import type { Candidate } from './candidate';
+import type { CandidateObjectiveConfigInput } from './objective-config';
 
 export type ValidateHeldOutCandidateInput = {
   dataRoot: string;
@@ -17,6 +18,7 @@ export type ValidateHeldOutCandidateInput = {
   maxMemories?: number;
   maxArtifacts?: number;
   selection: CandidateEvaluationResult;
+  objectiveConfig?: CandidateObjectiveConfigInput;
 };
 
 export async function validateHeldOutCandidate(input: ValidateHeldOutCandidateInput): Promise<CandidateEvaluationResult> {
@@ -29,7 +31,8 @@ export async function validateHeldOutCandidate(input: ValidateHeldOutCandidateIn
     artifactRecords: input.artifactRecords,
     referenceTime: input.referenceTime,
     maxMemories: input.maxMemories,
-    maxArtifacts: input.maxArtifacts
+    maxArtifacts: input.maxArtifacts,
+    objectiveConfig: input.objectiveConfig
   });
 
   await writeCandidateSplitSummary(input.dataRoot, input.runId, result.candidateId, 'held-out', result.summary);
@@ -43,6 +46,7 @@ export async function validateHeldOutCandidate(input: ValidateHeldOutCandidateIn
     candidateId: input.selection.candidateId,
     score: input.selection.summary.score,
     summary: input.selection.summary,
+    search: input.selection.summary,
     heldOut: result.summary
   });
 
