@@ -130,7 +130,7 @@ function patchPluginEntries(pluginEntries: PluginEntry[], dataRoot: string): Plu
 
     if (targetOptions) {
       if (!addedTarget) {
-        nextEntries.push([targetPackageSpec(entry), { ...targetOptions, dataRoot }])
+        nextEntries.push([targetPackageSpec(entry), withDefaultUserDataRoot(targetOptions, dataRoot)])
         addedTarget = true
       }
 
@@ -141,10 +141,18 @@ function patchPluginEntries(pluginEntries: PluginEntry[], dataRoot: string): Plu
   }
 
   if (!addedTarget) {
-    nextEntries.push([OPENCODE_META_HARNESS_PACKAGE_NAME, { dataRoot }])
+    nextEntries.push([OPENCODE_META_HARNESS_PACKAGE_NAME, { userDataRoot: dataRoot }])
   }
 
   return nextEntries
+}
+
+function withDefaultUserDataRoot(options: JsonObject, dataRoot: string): JsonObject {
+  if (typeof options.userDataRoot === 'string' && options.userDataRoot.length > 0) {
+    return { ...options }
+  }
+
+  return { ...options, userDataRoot: dataRoot }
 }
 
 export function targetPluginOptions(entry: PluginEntry): JsonObject | undefined {
