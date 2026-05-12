@@ -40,6 +40,78 @@ describe('adapter observability', () => {
     await expect(readFile(filePath, 'utf8')).resolves.toContain('warning: skipped memory record ignored.json')
   })
 
+  it('preserves runtime policy identity fields in written records', async () => {
+    const dataRoot = await mkdtemp(join(tmpdir(), 'meta-harness-plugin-core-observability-'))
+    tempDirectories.push(dataRoot)
+
+    const filePath = await writeAdapterObservabilityRecord(dataRoot, {
+      hostId: 'opencode',
+      hookName: 'task:start',
+      operation: 'task-start',
+      repoId: 'repo-a',
+      taskId: 'task-001',
+      selectedMemoryIds: ['memory-1'],
+      selectedArtifactIds: ['artifact-1'],
+      policyInputSupplied: true,
+      policyRunId: 'run-001',
+      policyCandidateId: 'candidate-001',
+      policySourceScope: 'project',
+      policyArtifactFile: 'artifacts/runtime-policy.json',
+      status: 'success',
+      createdAt: '2026-04-21T12:00:00.000Z'
+    })
+
+    await expect(readFile(filePath, 'utf8')).resolves.toContain('"policyRunId": "run-001"')
+    await expect(readFile(filePath, 'utf8')).resolves.toContain('"policyCandidateId": "candidate-001"')
+    await expect(readFile(filePath, 'utf8')).resolves.toContain('"policySourceScope": "project"')
+    await expect(readFile(filePath, 'utf8')).resolves.toContain('"policyArtifactFile": "artifacts/runtime-policy.json"')
+  })
+
+  it('parses optional runtime policy identity fields', () => {
+    expect(
+      parseAdapterObservabilityRecord({
+        hostId: 'opencode',
+        hookName: 'task:start',
+        operation: 'task-start',
+        repoId: 'repo-a',
+        taskId: 'task-001',
+        selectedMemoryIds: [],
+        selectedArtifactIds: [],
+        policyInputSupplied: false,
+        policyRunId: 'run-001',
+        policyCandidateId: 'candidate-001',
+        policySourceScope: 'user',
+        policyArtifactFile: 'policy/input.json',
+        status: 'success',
+        createdAt: '2026-04-21T12:00:00.000Z'
+      })
+    ).toMatchObject({
+      policyInputSupplied: false,
+      policyRunId: 'run-001',
+      policyCandidateId: 'candidate-001',
+      policySourceScope: 'user',
+      policyArtifactFile: 'policy/input.json'
+    })
+  })
+
+  it('rejects invalid runtime policy source scopes', () => {
+    expect(() =>
+      parseAdapterObservabilityRecord({
+        hostId: 'opencode',
+        hookName: 'task:start',
+        operation: 'task-start',
+        repoId: 'repo-a',
+        taskId: 'task-001',
+        selectedMemoryIds: [],
+        selectedArtifactIds: [],
+        policyInputSupplied: false,
+        policySourceScope: 'workspace',
+        status: 'success',
+        createdAt: '2026-04-21T12:00:00.000Z'
+      })
+    ).toThrowError(/policySourceScope/i)
+  })
+
   it('rejects invalid host ids and unknown payload fields', async () => {
     const dataRoot = await mkdtemp(join(tmpdir(), 'meta-harness-plugin-core-observability-'))
     tempDirectories.push(dataRoot)

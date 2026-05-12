@@ -1,6 +1,7 @@
 import { assertValidPathSegment, writeJsonFile } from '@meta-harness/core'
 export type AdapterObservabilityOperation = 'task-start' | 'task-end' | 'inspect-retrieval' | 'compact-session'
 export type AdapterObservabilityStatus = 'success' | 'failure' | 'warning'
+export type AdapterPolicySourceScope = 'user' | 'project'
 
 export type AdapterObservabilityRecord = {
   hostId: string
@@ -12,6 +13,10 @@ export type AdapterObservabilityRecord = {
   selectedMemoryIds: string[]
   selectedArtifactIds: string[]
   policyInputSupplied: boolean
+  policyRunId?: string
+  policyCandidateId?: string
+  policySourceScope?: AdapterPolicySourceScope
+  policyArtifactFile?: string
   status: AdapterObservabilityStatus
   warningMessages?: string[]
   createdAt: string
@@ -27,6 +32,10 @@ const allowedKeys = new Set<keyof AdapterObservabilityRecord>([
   'selectedMemoryIds',
   'selectedArtifactIds',
   'policyInputSupplied',
+  'policyRunId',
+  'policyCandidateId',
+  'policySourceScope',
+  'policyArtifactFile',
   'status',
   'warningMessages',
   'createdAt'
@@ -34,6 +43,7 @@ const allowedKeys = new Set<keyof AdapterObservabilityRecord>([
 
 const allowedOperations = new Set<AdapterObservabilityOperation>(['task-start', 'task-end', 'inspect-retrieval', 'compact-session'])
 const allowedStatuses = new Set<AdapterObservabilityStatus>(['success', 'failure', 'warning'])
+const allowedPolicySourceScopes = new Set<AdapterPolicySourceScope>(['user', 'project'])
 
 export function parseAdapterObservabilityRecord(input: unknown): AdapterObservabilityRecord {
   const record = asRecord(input, 'Adapter observability record must be an object.')
@@ -53,6 +63,10 @@ export function parseAdapterObservabilityRecord(input: unknown): AdapterObservab
   const selectedMemoryIds = asStringArray(record.selectedMemoryIds, 'selectedMemoryIds')
   const selectedArtifactIds = asStringArray(record.selectedArtifactIds, 'selectedArtifactIds')
   const policyInputSupplied = asBoolean(record.policyInputSupplied, 'policyInputSupplied')
+  const policyRunId = record.policyRunId === undefined ? undefined : asNonEmptyString(record.policyRunId, 'policyRunId')
+  const policyCandidateId = record.policyCandidateId === undefined ? undefined : asNonEmptyString(record.policyCandidateId, 'policyCandidateId')
+  const policySourceScope = record.policySourceScope === undefined ? undefined : asPolicySourceScope(record.policySourceScope)
+  const policyArtifactFile = record.policyArtifactFile === undefined ? undefined : asNonEmptyString(record.policyArtifactFile, 'policyArtifactFile')
   const status = asStatus(record.status)
   const warningMessages = record.warningMessages === undefined ? undefined : asStringArray(record.warningMessages, 'warningMessages')
   const createdAt = asIsoDatetime(record.createdAt, 'createdAt')
@@ -67,6 +81,10 @@ export function parseAdapterObservabilityRecord(input: unknown): AdapterObservab
     selectedMemoryIds,
     selectedArtifactIds,
     policyInputSupplied,
+    policyRunId,
+    policyCandidateId,
+    policySourceScope,
+    policyArtifactFile,
     status,
     warningMessages,
     createdAt
@@ -126,6 +144,14 @@ function asStatus(value: unknown): AdapterObservabilityStatus {
   }
 
   return value as AdapterObservabilityStatus
+}
+
+function asPolicySourceScope(value: unknown): AdapterPolicySourceScope {
+  if (typeof value !== 'string' || !allowedPolicySourceScopes.has(value as AdapterPolicySourceScope)) {
+    throw new TypeError('policySourceScope must be one of user or project')
+  }
+
+  return value as AdapterPolicySourceScope
 }
 
 function asIsoDatetime(value: unknown, fieldName: string): string {
