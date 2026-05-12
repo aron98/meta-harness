@@ -1,8 +1,19 @@
-import { basename } from 'node:path'
+import { readFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import { basename, isAbsolute, resolve } from 'node:path'
 
 import type { SessionPacketRoute, TaskType } from '@meta-harness/core'
+import {
+  parseAdapterRuntimePolicyArtifact,
+  projectAdapterRuntimePolicyArtifact,
+  type AdapterPolicyIdentity,
+  type AdapterPolicyInput,
+  type AdapterRuntimeRoots,
+  type ProjectedRuntimePolicy
+} from '@meta-harness/plugin-core'
 
 import { createOpenCodeAdapter } from './create-opencode-adapter'
+import { resolveDataRoot } from './install'
 import {
   mapOpenCodeToolExecuteRetrievalSignal
 } from './opencode-event-mappers'
@@ -70,7 +81,10 @@ type OpenCodeCompactingOutput = {
 
 export type OpenCodePluginOptions = {
   dataRoot?: string
+  policyArtifactFile?: string
   repoId?: string
+  userDataRoot?: string
+  userPolicyArtifactFile?: string
 }
 
 type OpenCodePluginFactoryDependencies = {
@@ -93,6 +107,21 @@ type TrackedTask = {
   }
   unresolvedQuestions: string[]
   startedAt: string
+  policyInput?: AdapterPolicyInput
+  policyIdentity?: AdapterPolicyIdentity
+  maxMemories?: number
+  maxArtifacts?: number
+}
+
+type ResolvedRuntimeOptions = {
+  userDataRoot: string
+  projectDataRoot?: string
+  userPolicyArtifactFile?: string
+  projectPolicyArtifactFile?: string
+}
+
+type ActiveRuntimePolicy = ProjectedRuntimePolicy & {
+  identity: AdapterPolicyIdentity
 }
 
 export type OpenCodePluginModule = {
@@ -108,9 +137,11 @@ export function createOpenCodePlugin(dependencies: OpenCodePluginFactoryDependen
   return {
     id: 'opencode-meta-harness',
     async server(input, options = {}) {
-      const dataRoot = options.dataRoot ?? input.directory ?? process.cwd()
+      const resolvedOptions = resolveRuntimeOptions(input, options)
       const repoId = options.repoId ?? deriveRepoId(input)
-      const adapter = createAdapter({ dataRoot })
+      const runtimeRoots = buildRuntimeRoots(resolvedOptions)
+      const activePolicy = await loadActiveRuntimePolicy(resolvedOptions)
+      const adapter = createAdapter({ dataRoot: resolvedOptions.userDataRoot, runtimeRoots })
 
       return {
         'chat.message': async (messageInput, messageOutput) => {
@@ -124,17 +155,32 @@ export function createOpenCodePlugin(dependencies: OpenCodePluginFactoryDependen
           const messageIdentity = messageInput.messageID ?? `${messageInput.sessionID}:${referenceTime}`
 
             try {
-              const startResult = await adapter.startTask({
+              const baseStartInput = {
                 packetId: messageInput.messageID ?? `${messageIdentity}:packet`,
                 repoId,
                 taskId: messageInput.messageID ?? `${messageIdentity}:chat-message`,
-              taskText,
-              taskType: 'analysis',
-              prompt: taskText,
-              memoryRecords: [],
-                artifactRecords: [],
+                taskText,
+                taskType: 'analysis',
+                prompt: taskText,
                 referenceTime
-              })
+              }
+              const startInput = activePolicy === undefined && runtimeRoots.projectDataRoot === undefined ? {
+                ...baseStartInput,
+                memoryRecords: [],
+                artifactRecords: []
+              } : {
+                ...baseStartInput,
+                runtimeRoots,
+                userMemoryRecords: [],
+                projectMemoryRecords: [],
+                userArtifactRecords: [],
+                projectArtifactRecords: [],
+                policyInput: activePolicy?.policyInput,
+                maxMemories: activePolicy?.maxMemories,
+                maxArtifacts: activePolicy?.maxArtifacts,
+                policyIdentity: activePolicy?.identity
+              }
+              const startResult = await adapter.startTask(startInput)
 
               activeTasks.set(messageInput.sessionID, {
                 repoId,
@@ -150,7 +196,11 @@ export function createOpenCodePlugin(dependencies: OpenCodePluginFactoryDependen
                   completedSteps: [...startResult.result.taskStart.verificationState.completedSteps]
                 },
                 unresolvedQuestions: [...startResult.result.taskStart.unresolvedQuestions],
-                startedAt: startResult.result.taskStart.startedAt
+                startedAt: startResult.result.taskStart.startedAt,
+                policyInput: activePolicy?.policyInput,
+                policyIdentity: activePolicy?.identity,
+                maxMemories: activePolicy?.maxMemories,
+                maxArtifacts: activePolicy?.maxArtifacts
               })
             } catch {
               return
@@ -175,7 +225,7 @@ export function createOpenCodePlugin(dependencies: OpenCodePluginFactoryDependen
           }
 
           try {
-            await adapter.endTask({
+            const baseEndInput = {
               id: `${tracked.taskId}:end`,
               repoId: tracked.repoId,
               taskId: tracked.taskId,
@@ -191,11 +241,18 @@ export function createOpenCodePlugin(dependencies: OpenCodePluginFactoryDependen
               filesChanged: [],
               commands: [],
               diagnostics: ['Derived from OpenCode session idle signal.'],
-              outcome: 'partial',
+              outcome: 'partial' as const,
               tags: ['opencode', 'host-integration', event.type],
               startedAt: tracked.startedAt,
               endedAt: now()
-            })
+            }
+            const endInput = tracked.policyInput === undefined && tracked.policyIdentity === undefined ? baseEndInput : {
+              ...baseEndInput,
+              policyInput: tracked.policyInput,
+              policyIdentity: tracked.policyIdentity
+            }
+
+            await adapter.endTask(endInput)
           } catch {
             return
           } finally {
@@ -214,15 +271,20 @@ export function createOpenCodePlugin(dependencies: OpenCodePluginFactoryDependen
           }
 
           try {
-            await adapter.inspectRetrieval(
-              mapOpenCodeToolExecuteRetrievalSignal(signal, {
+            const inspectRetrievalInput = mapOpenCodeToolExecuteRetrievalSignal(signal, {
                 repoId: tracked.repoId,
                 taskId: tracked.taskId,
                 taskText: tracked.taskText,
                 taskType: tracked.taskType,
-                policyInput: undefined
+                policyInput: tracked.policyInput,
+                maxMemories: tracked.maxMemories,
+                maxArtifacts: tracked.maxArtifacts
               })
-            )
+
+            await adapter.inspectRetrieval(tracked.policyIdentity === undefined ? inspectRetrievalInput : {
+              ...inspectRetrievalInput,
+              policyIdentity: tracked.policyIdentity
+            })
           } catch {
             return
           }
@@ -239,7 +301,7 @@ export function createOpenCodePlugin(dependencies: OpenCodePluginFactoryDependen
             : undefined
 
           try {
-            await adapter.compactSession({
+            const baseCompactionInput = {
               repoId: tracked.repoId,
               taskId: tracked.taskId,
               taskText: promptOverride ?? tracked.taskText,
@@ -251,7 +313,14 @@ export function createOpenCodePlugin(dependencies: OpenCodePluginFactoryDependen
               startedAt: tracked.startedAt,
               endedAt: compactedAt,
               compactedAt
-            })
+            }
+            const compactionInput = tracked.policyInput === undefined && tracked.policyIdentity === undefined ? baseCompactionInput : {
+              ...baseCompactionInput,
+              policyInput: tracked.policyInput,
+              policyIdentity: tracked.policyIdentity
+            }
+
+            await adapter.compactSession(compactionInput)
           } catch {
             return
           }
@@ -304,6 +373,110 @@ function extractTaskText(output: OpenCodeChatMessageOutput): string {
     .join('\n')
 
   return partText.trim()
+}
+
+function resolveRuntimeOptions(input: OpenCodePluginInput, options: OpenCodePluginOptions): ResolvedRuntimeOptions {
+  const baseDirectory = getBaseDirectory(input)
+  const userDataRoot = options.userDataRoot === undefined
+    ? resolveDefaultUserDataRoot()
+    : resolveRuntimePath(options.userDataRoot, baseDirectory, true)
+  const projectDataRoot = options.dataRoot === undefined
+    ? undefined
+    : resolveRuntimePath(options.dataRoot, baseDirectory, false)
+  const userPolicyArtifactFile = options.userPolicyArtifactFile === undefined
+    ? undefined
+    : resolveRuntimePath(options.userPolicyArtifactFile, baseDirectory, true)
+  const projectPolicyArtifactFile = options.policyArtifactFile === undefined
+    ? undefined
+    : resolveRuntimePath(options.policyArtifactFile, baseDirectory, false)
+
+  return {
+    userDataRoot,
+    projectDataRoot,
+    userPolicyArtifactFile,
+    projectPolicyArtifactFile
+  }
+}
+
+function resolveDefaultUserDataRoot(): string {
+  return resolveDataRoot({ home: process.env.HOME ?? homedir(), env: process.env })
+}
+
+function getBaseDirectory(input: OpenCodePluginInput): string {
+  return input.directory ?? process.cwd()
+}
+
+function resolveRuntimePath(pathValue: string, baseDirectory: string, expandHome: boolean): string {
+  const expandedPath = expandHome ? expandHomeDirectory(pathValue) : pathValue
+
+  return isAbsolute(expandedPath) ? expandedPath : resolve(baseDirectory, expandedPath)
+}
+
+function expandHomeDirectory(pathValue: string): string {
+  if (pathValue === '~') {
+    return homedir()
+  }
+
+  if (pathValue.startsWith('~/')) {
+    return resolve(homedir(), pathValue.slice(2))
+  }
+
+  return pathValue
+}
+
+function buildRuntimeRoots(options: ResolvedRuntimeOptions): AdapterRuntimeRoots {
+  if (options.projectDataRoot === undefined) {
+    return { userDataRoot: options.userDataRoot }
+  }
+
+  return {
+    userDataRoot: options.userDataRoot,
+    projectDataRoot: options.projectDataRoot
+  }
+}
+
+async function loadActiveRuntimePolicy(options: ResolvedRuntimeOptions): Promise<ActiveRuntimePolicy | undefined> {
+  const projectPolicy = options.projectPolicyArtifactFile === undefined
+    ? undefined
+    : await loadRuntimePolicyArtifact('policyArtifactFile', options.projectPolicyArtifactFile, 'project')
+  if (projectPolicy !== undefined) {
+    return projectPolicy
+  }
+
+  const userPolicy = options.userPolicyArtifactFile === undefined
+    ? undefined
+    : await loadRuntimePolicyArtifact('userPolicyArtifactFile', options.userPolicyArtifactFile, 'user')
+
+  return userPolicy
+}
+
+async function loadRuntimePolicyArtifact(
+  optionName: 'userPolicyArtifactFile' | 'policyArtifactFile',
+  artifactFile: string,
+  sourceScope: AdapterPolicyIdentity['sourceScope']
+): Promise<ActiveRuntimePolicy> {
+  try {
+    const artifactContent = await readFile(artifactFile, 'utf8')
+    const artifactJson: unknown = JSON.parse(artifactContent)
+    const artifact = parseAdapterRuntimePolicyArtifact(artifactJson)
+    const projected = projectAdapterRuntimePolicyArtifact(artifact)
+
+    return {
+      ...projected,
+      identity: {
+        runId: projected.identity.runId,
+        candidateId: projected.identity.candidateId,
+        sourceScope,
+        artifactFile
+      }
+    }
+  } catch (error) {
+    throw new Error(`Failed to load ${optionName} ${artifactFile}: ${formatErrorMessage(error)}`)
+  }
+}
+
+function formatErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 const opencodePlugin = createOpenCodePlugin()
