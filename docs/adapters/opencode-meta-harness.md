@@ -48,16 +48,30 @@ The mapping layer only renames and forwards values. The adapter factory then com
 
 For the current retrieval-inspection slice, the OpenCode-specific mapping also includes a thin heuristic path for documented `tool.execute.before` payloads. That path only gates on a small allowlist of retrieval-like tool names (`read`, `grep`, `glob`, and `webfetch`), while args are merely observed from the host payload in this slice and are not interpreted or forwarded as retrieval policy input. It then routes the tracked task context into the existing `inspectRetrieval()` adapter seam with bounded, observational input.
 
+## Runtime policy path
+
+Runtime policy starts in the OpenCode plugin tuple. The tuple may supply `userPolicyArtifactFile` for user policy and `policyArtifactFile` for project policy. The OpenCode adapter forwards those paths to `packages/plugin-core`, where policy artifacts are parsed and projected into the shared runtime policy shape used by lifecycle, retrieval, routing, verification, and hook-facing adapter calls.
+
+Project policy overrides user policy when both are configured. Observability records include these policy fields when available:
+
+- `policyInputSupplied`
+- `policyRunId`
+- `policyCandidateId`
+- `policySourceScope`
+- `policyArtifactFile`
+
+Storage roots follow the same explicit tuple model. `dataRoot` enables project writes, `userDataRoot` remains the user record root, writes fall back to the user root when no project root is configured, and reads combine project records first with user records second.
+
 ## Current host integration slice
 
 The package also exports a default OpenCode plugin module with id `opencode-meta-harness`.
 
 The verified host integration for this slice is:
 
-- `event` on `session.status` with `idle` → derive a best-effort local task-end request → call the thin adapter in shadow mode
-- `event` on `session.idle` → compatibility fallback for the same best-effort local task-end request
-- `experimental.session.compacting` → derive a best-effort local compaction request → call the thin adapter in shadow mode
-- `tool.execute.before` on retrieval-like tool names → derive a best-effort heuristic retrieval inspection request → call the thin adapter in shadow mode
+- `event` on `session.status` with `idle` -> derive a best-effort local task-end request -> call the thin adapter in shadow mode
+- `event` on `session.idle` -> compatibility fallback for the same best-effort local task-end request
+- `experimental.session.compacting` -> derive a best-effort local compaction request -> call the thin adapter in shadow mode
+- `tool.execute.before` on retrieval-like tool names -> derive a best-effort heuristic retrieval inspection request -> call the thin adapter in shadow mode
 
 The implementation currently also derives task-start behavior from `chat.message`, but this adapter note treats that as current wiring rather than a formally documented public OpenCode hook contract.
 

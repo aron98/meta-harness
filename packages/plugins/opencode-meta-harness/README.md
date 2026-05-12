@@ -10,18 +10,43 @@ Use the package executable to patch the global OpenCode config with the npm plug
 npx @meta-harness/opencode-meta-harness install
 ```
 
-By default this writes `$XDG_CONFIG_HOME/opencode/opencode.json` or `~/.config/opencode/opencode.json`, and creates `$XDG_DATA_HOME/opencode-meta-harness` or `~/.local/share/opencode-meta-harness` for plugin data. The installer resolves that folder to an absolute path before writing `dataRoot` into config, so the generated entry looks like:
+By default this writes `$XDG_CONFIG_HOME/opencode/opencode.json` or `~/.config/opencode/opencode.json`, and creates `$XDG_DATA_HOME/opencode-meta-harness` or `~/.local/share/opencode-meta-harness` for plugin data. The installer resolves that folder to an absolute path before writing `userDataRoot` into config, so the generated entry looks like:
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": [["@meta-harness/opencode-meta-harness", { "dataRoot": "/home/you/.local/share/opencode-meta-harness" }]]
+  "plugin": [["@meta-harness/opencode-meta-harness", { "userDataRoot": "/home/you/.local/share/opencode-meta-harness" }]]
 }
 ```
 
 Use `--dry-run` to print the target config and data paths without writing files.
 
 The installer is safe to run more than once. If the plugin is already configured, it normalizes duplicate bare entries into a single tuple and reports `Already installed: yes` instead of adding another plugin entry. If a newer npm version is available, the install output tells you to run the upgrade command.
+
+The installer preserves existing tuple options, including policy options, but it does not add policy artifact paths for you. Runtime policy use is explicit configuration.
+
+## Runtime policy and storage options
+
+The OpenCode plugin tuple accepts these storage and policy options:
+
+```json
+[
+  "@meta-harness/opencode-meta-harness",
+  {
+    "userDataRoot": "/home/you/.local/share/opencode-meta-harness",
+    "userPolicyArtifactFile": "/home/you/.local/share/opencode-meta-harness/policies/user-policy.json",
+    "dataRoot": "/repo/.meta-harness",
+    "policyArtifactFile": "/repo/.meta-harness/policies/project-policy.json"
+  }
+]
+```
+
+- `dataRoot` is the optional project root when configured. Use it for shareable project-scoped records that should stay separate from user-local records.
+- `policyArtifactFile` applies a project policy artifact. Project policy overrides user policy when both are configured.
+- `userDataRoot` is the user root and is the fallback write root when no project data root is configured.
+- `userPolicyArtifactFile` applies a user policy artifact when no project policy is configured.
+
+`@meta-harness/plugin-core` can combine scoped project records first and scoped user records second when a host adapter supplies those record arrays. In this slice, the OpenCode plugin forwards scoped records through that adapter seam but does not perform filesystem-backed record reads from `dataRoot` or `userDataRoot` itself. `doctor` reports configured policy artifact paths and whether each artifact is present, missing, malformed, or not configured.
 
 ## Commands
 
@@ -41,6 +66,7 @@ npx @meta-harness/opencode-meta-harness upgrade [--dry-run]
 - whether the plugin is configured
 - the configured package spec
 - whether the data root exists
+- policy artifact path and status: `present`, `missing`, `malformed`, or `not configured`
 - current package version
 - latest npm version, or `unknown` if unavailable
 - update status: `up to date`, `update available`, or `unknown`
@@ -51,11 +77,11 @@ OpenCode may cache npm plugin packages, so a bare package spec can remain on an 
 
 ```json
 {
-  "plugin": [["@meta-harness/opencode-meta-harness@0.2.0", { "dataRoot": "/home/you/.local/share/opencode-meta-harness" }]]
+  "plugin": [["@meta-harness/opencode-meta-harness@0.2.0", { "userDataRoot": "/home/you/.local/share/opencode-meta-harness" }]]
 }
 ```
 
-Tuple options such as `dataRoot` are preserved. If the config is already up to date, `upgrade` reports that no change is needed. Use `upgrade --dry-run` to preview the package spec change without writing the config.
+Tuple options such as `userDataRoot`, `dataRoot`, and policy artifact paths are preserved. If the config is already up to date, `upgrade` reports that no change is needed. Use `upgrade --dry-run` to preview the package spec change without writing the config.
 
 ## Status in this slice
 
