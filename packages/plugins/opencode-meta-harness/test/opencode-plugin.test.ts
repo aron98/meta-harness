@@ -1,6 +1,67 @@
-import { describe, expect, it, vi } from 'vitest'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { homedir, tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+import type { AdapterPolicyInput } from '@meta-harness/plugin-core'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createOpenCodePlugin } from '../src/index'
+
+const tempDirectories: string[] = []
+
+afterEach(async () => {
+  await Promise.all(tempDirectories.splice(0).map(async (directory) => rm(directory, { recursive: true, force: true })))
+})
+
+function createStartTaskResult(input: {
+  taskId: string
+  taskType?: 'analysis' | 'implementation' | 'verification'
+  suggestedRoute?: 'explore' | 'implement' | 'verify'
+  selectedMemoryIds?: string[]
+  selectedArtifactIds?: string[]
+  startedAt?: string
+}) {
+  return {
+    filePath: `/tmp/store/data/runtime/task-start/repo-alpha/${input.taskId}.json`,
+    observabilityFilePath: `/tmp/store/data/runtime/adapter-events/opencode/repo-alpha/${input.taskId}/task-start.json`,
+    result: {
+      taskStart: {
+        startedAt: input.startedAt ?? '2026-04-22T15:20:00.000Z',
+        verificationState: { status: 'pending' as const, checklist: ['Capture evidence'], completedSteps: [] },
+        unresolvedQuestions: []
+      },
+      context: {
+        taskId: input.taskId,
+        packet: {
+          taskType: input.taskType ?? 'analysis',
+          suggestedRoute: input.suggestedRoute ?? 'explore',
+          selectedMemoryIds: input.selectedMemoryIds ?? [],
+          selectedArtifactIds: input.selectedArtifactIds ?? []
+        }
+      }
+    }
+  }
+}
+
+function runtimePolicyArtifact(input: {
+  runId: string
+  candidateId: string
+  policyInput: AdapterPolicyInput
+  maxMemories?: number
+  maxArtifacts?: number
+}) {
+  return {
+    runId: input.runId,
+    candidateId: input.candidateId,
+    policy: {
+      ...input.policyInput,
+      context: {
+        maxMemories: input.maxMemories,
+        maxArtifacts: input.maxArtifacts
+      }
+    }
+  }
+}
 
 describe('OpenCode plugin host integration', () => {
   it('exposes a plugin module with stable id and chat.message hook', async () => {
@@ -16,29 +77,396 @@ describe('OpenCode plugin host integration', () => {
   })
 
   it('derives a task-start call from chat.message in shadow mode', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'meta-harness-opencode-plugin-'))
+    tempDirectories.push(directory)
+    const previousXdgDataHome = process.env.XDG_DATA_HOME
+    const xdgDataHome = join(directory, 'xdg-data')
     const startTask = vi.fn().mockResolvedValue(undefined)
     const createAdapter = vi.fn().mockReturnValue({ startTask })
 
-    const plugin = createOpenCodePlugin({ createAdapter, now: () => '2026-04-22T15:00:00.000Z' })
+    try {
+      process.env.XDG_DATA_HOME = xdgDataHome
+      const plugin = createOpenCodePlugin({ createAdapter, now: () => '2026-04-22T15:00:00.000Z' })
+      const hooks = await plugin.server({ project: { id: 'repo-alpha' }, directory: '/tmp/repo-alpha' })
+
+      await hooks['chat.message']?.(
+        { sessionID: 'session-001', messageID: 'message-001' },
+        { message: 'Please inspect the new OpenCode plugin integration boundary.' }
+      )
+
+      const defaultUserDataRoot = join(xdgDataHome, 'opencode-meta-harness')
+      expect(createAdapter).toHaveBeenCalledWith({
+        dataRoot: defaultUserDataRoot,
+        runtimeRoots: { userDataRoot: defaultUserDataRoot }
+      })
+      expect(startTask).toHaveBeenCalledWith({
+        packetId: 'message-001',
+        repoId: 'repo-alpha',
+        taskId: 'message-001',
+        taskText: 'Please inspect the new OpenCode plugin integration boundary.',
+        taskType: 'analysis',
+        prompt: 'Please inspect the new OpenCode plugin integration boundary.',
+        memoryRecords: [],
+        artifactRecords: [],
+        referenceTime: '2026-04-22T15:00:00.000Z'
+      })
+    } finally {
+      if (previousXdgDataHome === undefined) {
+        delete process.env.XDG_DATA_HOME
+      } else {
+        process.env.XDG_DATA_HOME = previousXdgDataHome
+      }
+    }
+  })
+
+  it('resolves user and project runtime roots from server options while keeping the user root available', async () => {
+    const startTask = vi.fn().mockResolvedValue(createStartTaskResult({ taskId: 'message-100' }))
+    const createAdapter = vi.fn().mockReturnValue({ startTask })
+
+    const plugin = createOpenCodePlugin({ createAdapter, now: () => '2026-04-22T16:00:00.000Z' })
+    const hooks = await plugin.server(
+      { project: { id: 'repo-alpha' }, directory: '/tmp/repo-alpha' },
+      {
+        userDataRoot: '~/opencode-meta-harness-user',
+        dataRoot: '.opencode/meta-harness'
+      }
+    )
+
+    await hooks['chat.message']?.(
+      { sessionID: 'session-100', messageID: 'message-100' },
+      { message: 'Inspect scoped runtime roots.' }
+    )
+
+    expect(createAdapter).toHaveBeenCalledWith({
+      dataRoot: join(homedir(), 'opencode-meta-harness-user'),
+      runtimeRoots: {
+        userDataRoot: join(homedir(), 'opencode-meta-harness-user'),
+        projectDataRoot: '/tmp/repo-alpha/.opencode/meta-harness'
+      }
+    })
+    expect(startTask).toHaveBeenCalledWith(expect.objectContaining({
+      runtimeRoots: {
+        userDataRoot: join(homedir(), 'opencode-meta-harness-user'),
+        projectDataRoot: '/tmp/repo-alpha/.opencode/meta-harness'
+      },
+      userMemoryRecords: [],
+      projectMemoryRecords: [],
+      userArtifactRecords: [],
+      projectArtifactRecords: []
+    }))
+  })
+
+  it('loads a configured user policy artifact once at server startup and forwards policy context', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'meta-harness-opencode-plugin-'))
+    tempDirectories.push(directory)
+    const artifactFile = join(directory, 'user-policy.json')
+    await writeFile(artifactFile, JSON.stringify(runtimePolicyArtifact({
+      runId: 'user-run',
+      candidateId: 'user-candidate',
+      policyInput: { routing: { buildPromptMode: 'prefer-analysis' } },
+      maxMemories: 1,
+      maxArtifacts: 0
+    })), 'utf8')
+
+    const startTask = vi.fn().mockResolvedValue(createStartTaskResult({ taskId: 'message-101' }))
+    const createAdapter = vi.fn().mockReturnValue({ startTask })
+
+    const plugin = createOpenCodePlugin({ createAdapter, now: () => '2026-04-22T16:05:00.000Z' })
+    const hooks = await plugin.server(
+      { project: { id: 'repo-alpha' }, directory },
+      { userPolicyArtifactFile: 'user-policy.json' }
+    )
+    await writeFile(artifactFile, '{"not":"used after startup"}', 'utf8')
+
+    await hooks['chat.message']?.(
+      { sessionID: 'session-101', messageID: 'message-101' },
+      { message: 'Inspect loaded user policy.' }
+    )
+
+    expect(startTask).toHaveBeenCalledWith(expect.objectContaining({
+      policyInput: { routing: { buildPromptMode: 'prefer-analysis' } },
+      maxMemories: 1,
+      maxArtifacts: 0,
+      policyIdentity: {
+        runId: 'user-run',
+        candidateId: 'user-candidate',
+        sourceScope: 'user',
+        artifactFile
+      }
+    }))
+  })
+
+  it('lets a configured project policy artifact override a configured user policy artifact', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'meta-harness-opencode-plugin-'))
+    tempDirectories.push(directory)
+    const userArtifactFile = join(directory, 'user-policy.json')
+    const projectArtifactFile = join(directory, 'project-policy.json')
+    await writeFile(userArtifactFile, JSON.stringify(runtimePolicyArtifact({
+      runId: 'user-run',
+      candidateId: 'user-candidate',
+      policyInput: { routing: { buildPromptMode: 'prefer-analysis' } },
+      maxMemories: 3,
+      maxArtifacts: 2
+    })), 'utf8')
+    await writeFile(projectArtifactFile, JSON.stringify(runtimePolicyArtifact({
+      runId: 'project-run',
+      candidateId: 'project-candidate',
+      policyInput: { routing: { buildPromptMode: 'prefer-codegen' } },
+      maxMemories: 0,
+      maxArtifacts: 1
+    })), 'utf8')
+
+    const startTask = vi.fn().mockResolvedValue(createStartTaskResult({ taskId: 'message-102' }))
+    const createAdapter = vi.fn().mockReturnValue({ startTask })
+
+    const plugin = createOpenCodePlugin({ createAdapter, now: () => '2026-04-22T16:10:00.000Z' })
+    const hooks = await plugin.server(
+      { project: { id: 'repo-alpha' }, directory },
+      { userPolicyArtifactFile: 'user-policy.json', policyArtifactFile: 'project-policy.json' }
+    )
+
+    await hooks['chat.message']?.(
+      { sessionID: 'session-102', messageID: 'message-102' },
+      { message: 'Inspect project policy precedence.' }
+    )
+
+    expect(startTask).toHaveBeenCalledWith(expect.objectContaining({
+      policyInput: { routing: { buildPromptMode: 'prefer-codegen' } },
+      maxMemories: 0,
+      maxArtifacts: 1,
+      policyIdentity: {
+        runId: 'project-run',
+        candidateId: 'project-candidate',
+        sourceScope: 'project',
+        artifactFile: projectArtifactFile
+      }
+    }))
+  })
+
+  it('loads a configured project policy artifact when the configured user policy artifact is missing', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'meta-harness-opencode-plugin-'))
+    tempDirectories.push(directory)
+    const projectArtifactFile = join(directory, 'project-policy.json')
+    await writeFile(projectArtifactFile, JSON.stringify(runtimePolicyArtifact({
+      runId: 'project-run',
+      candidateId: 'project-candidate',
+      policyInput: { routing: { buildPromptMode: 'prefer-codegen' } },
+      maxMemories: 0,
+      maxArtifacts: 1
+    })), 'utf8')
+
+    const startTask = vi.fn().mockResolvedValue(createStartTaskResult({ taskId: 'message-106' }))
+    const createAdapter = vi.fn().mockReturnValue({ startTask })
+
+    const plugin = createOpenCodePlugin({ createAdapter, now: () => '2026-04-22T16:35:00.000Z' })
+    const hooks = await plugin.server(
+      { project: { id: 'repo-alpha' }, directory },
+      { userPolicyArtifactFile: 'missing-user-policy.json', policyArtifactFile: 'project-policy.json' }
+    )
+
+    await hooks['chat.message']?.(
+      { sessionID: 'session-106', messageID: 'message-106' },
+      { message: 'Inspect project policy precedence over missing user policy.' }
+    )
+
+    expect(startTask).toHaveBeenCalledWith(expect.objectContaining({
+      policyInput: { routing: { buildPromptMode: 'prefer-codegen' } },
+      maxMemories: 0,
+      maxArtifacts: 1,
+      policyIdentity: {
+        runId: 'project-run',
+        candidateId: 'project-candidate',
+        sourceScope: 'project',
+        artifactFile: projectArtifactFile
+      }
+    }))
+  })
+
+  it('loads a configured project policy artifact when the configured user policy artifact is malformed', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'meta-harness-opencode-plugin-'))
+    tempDirectories.push(directory)
+    const malformedUserArtifactFile = join(directory, 'malformed-user-policy.json')
+    const projectArtifactFile = join(directory, 'project-policy.json')
+    await writeFile(malformedUserArtifactFile, JSON.stringify({ runId: '', policy: {} }), 'utf8')
+    await writeFile(projectArtifactFile, JSON.stringify(runtimePolicyArtifact({
+      runId: 'project-run',
+      candidateId: 'project-candidate',
+      policyInput: { routing: { buildPromptMode: 'prefer-codegen' } },
+      maxMemories: 2,
+      maxArtifacts: 0
+    })), 'utf8')
+
+    const startTask = vi.fn().mockResolvedValue(createStartTaskResult({ taskId: 'message-107' }))
+    const createAdapter = vi.fn().mockReturnValue({ startTask })
+
+    const plugin = createOpenCodePlugin({ createAdapter, now: () => '2026-04-22T16:40:00.000Z' })
+    const hooks = await plugin.server(
+      { project: { id: 'repo-alpha' }, directory },
+      { userPolicyArtifactFile: 'malformed-user-policy.json', policyArtifactFile: 'project-policy.json' }
+    )
+
+    await hooks['chat.message']?.(
+      { sessionID: 'session-107', messageID: 'message-107' },
+      { message: 'Inspect project policy precedence over malformed user policy.' }
+    )
+
+    expect(startTask).toHaveBeenCalledWith(expect.objectContaining({
+      policyInput: { routing: { buildPromptMode: 'prefer-codegen' } },
+      maxMemories: 2,
+      maxArtifacts: 0,
+      policyIdentity: {
+        runId: 'project-run',
+        candidateId: 'project-candidate',
+        sourceScope: 'project',
+        artifactFile: projectArtifactFile
+      }
+    }))
+  })
+
+  it('forwards active policy into retrieval inspection, compaction, and task-end hooks', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'meta-harness-opencode-plugin-'))
+    tempDirectories.push(directory)
+    const projectArtifactFile = join(directory, 'project-policy.json')
+    const policyInput = { routing: { buildPromptMode: 'prefer-codegen' } }
+    await writeFile(projectArtifactFile, JSON.stringify(runtimePolicyArtifact({
+      runId: 'project-run',
+      candidateId: 'project-candidate',
+      policyInput,
+      maxMemories: 2,
+      maxArtifacts: 1
+    })), 'utf8')
+
+    const startTask = vi.fn().mockResolvedValue(createStartTaskResult({
+      taskId: 'message-104',
+      selectedMemoryIds: ['memory-1'],
+      selectedArtifactIds: ['artifact-1']
+    }))
+    const inspectRetrieval = vi.fn().mockResolvedValue(undefined)
+    const compactSession = vi.fn().mockResolvedValue(undefined)
+    const endTask = vi.fn().mockResolvedValue(undefined)
+    const createAdapter = vi.fn().mockReturnValue({ startTask, inspectRetrieval, compactSession, endTask })
+
+    const plugin = createOpenCodePlugin({ createAdapter, now: () => '2026-04-22T16:25:00.000Z' })
+    const hooks = await plugin.server(
+      { project: { id: 'repo-alpha' }, directory },
+      { policyArtifactFile: 'project-policy.json' }
+    )
+
+    await hooks['chat.message']?.(
+      { sessionID: 'session-104', messageID: 'message-104' },
+      { message: 'Inspect downstream policy forwarding.' }
+    )
+    await hooks['tool.execute.before']?.({
+      sessionID: 'session-104',
+      callID: 'call-read',
+      tool: 'read'
+    }, {
+      args: { filePath: '/repo/src/index.ts' }
+    })
+    await hooks['experimental.session.compacting']?.(
+      { sessionID: 'session-104' },
+      { context: ['ctx-1'] }
+    )
+    await hooks.event?.({ event: { type: 'session.status', properties: { sessionID: 'session-104', status: { type: 'idle' } } } })
+
+    const policyIdentity = {
+      runId: 'project-run',
+      candidateId: 'project-candidate',
+      sourceScope: 'project',
+      artifactFile: projectArtifactFile
+    }
+    expect(inspectRetrieval).toHaveBeenCalledWith(expect.objectContaining({
+      policyInput,
+      policyIdentity,
+      maxMemories: 2,
+      maxArtifacts: 1
+    }))
+    expect(compactSession).toHaveBeenCalledWith(expect.objectContaining({ policyInput, policyIdentity }))
+    expect(endTask).toHaveBeenCalledWith(expect.objectContaining({ policyInput, policyIdentity }))
+  })
+
+  it('forwards active policy context limits into retrieval inspection hook input', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'meta-harness-opencode-plugin-'))
+    tempDirectories.push(directory)
+    const projectArtifactFile = join(directory, 'project-policy.json')
+    await writeFile(projectArtifactFile, JSON.stringify(runtimePolicyArtifact({
+      runId: 'project-run',
+      candidateId: 'project-candidate',
+      policyInput: { retrieval: { repoMatchWeight: 10 } },
+      maxMemories: 4,
+      maxArtifacts: 2
+    })), 'utf8')
+
+    const startTask = vi.fn().mockResolvedValue(createStartTaskResult({ taskId: 'message-105' }))
+    const inspectRetrieval = vi.fn().mockResolvedValue(undefined)
+    const createAdapter = vi.fn().mockReturnValue({ startTask, inspectRetrieval })
+
+    const plugin = createOpenCodePlugin({ createAdapter, now: () => '2026-04-22T16:30:00.000Z' })
+    const hooks = await plugin.server(
+      { project: { id: 'repo-alpha' }, directory },
+      { policyArtifactFile: 'project-policy.json' }
+    )
+
+    await hooks['chat.message']?.(
+      { sessionID: 'session-105', messageID: 'message-105' },
+      { message: 'Inspect retrieval limits forwarding.' }
+    )
+    await hooks['tool.execute.before']?.({
+      sessionID: 'session-105',
+      callID: 'call-read',
+      tool: 'read'
+    }, {
+      args: { filePath: '/repo/src/index.ts' }
+    })
+
+    expect(inspectRetrieval).toHaveBeenCalledWith(expect.objectContaining({
+      repoId: 'repo-alpha',
+      taskId: 'message-105',
+      taskText: 'Inspect retrieval limits forwarding.',
+      taskType: 'analysis',
+      maxMemories: 4,
+      maxArtifacts: 2
+    }))
+  })
+
+  it('throws startup errors that name missing and malformed configured policy artifact options', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'meta-harness-opencode-plugin-'))
+    tempDirectories.push(directory)
+    const malformedArtifactFile = join(directory, 'malformed-policy.json')
+    await writeFile(malformedArtifactFile, JSON.stringify({ runId: '', policy: {} }), 'utf8')
+
+    const plugin = createOpenCodePlugin({ createAdapter: vi.fn(), now: () => '2026-04-22T16:15:00.000Z' })
+
+    await expect(plugin.server(
+      { project: { id: 'repo-alpha' }, directory },
+      { userPolicyArtifactFile: 'missing-policy.json' }
+    )).rejects.toThrow(`userPolicyArtifactFile ${join(directory, 'missing-policy.json')}`)
+    await expect(plugin.server(
+      { project: { id: 'repo-alpha' }, directory },
+      { userPolicyArtifactFile: 'malformed-policy.json' }
+    )).rejects.toThrow(`userPolicyArtifactFile ${malformedArtifactFile}`)
+    await expect(plugin.server(
+      { project: { id: 'repo-alpha' }, directory },
+      { policyArtifactFile: 'malformed-policy.json' }
+    )).rejects.toThrow(`policyArtifactFile ${malformedArtifactFile}`)
+  })
+
+  it('keeps policy disabled without warning when no policy artifact option is configured', async () => {
+    const startTask = vi.fn().mockResolvedValue(createStartTaskResult({ taskId: 'message-103' }))
+    const createAdapter = vi.fn().mockReturnValue({ startTask })
+
+    const plugin = createOpenCodePlugin({ createAdapter, now: () => '2026-04-22T16:20:00.000Z' })
     const hooks = await plugin.server({ project: { id: 'repo-alpha' }, directory: '/tmp/repo-alpha' })
 
     await hooks['chat.message']?.(
-      { sessionID: 'session-001', messageID: 'message-001' },
-      { message: 'Please inspect the new OpenCode plugin integration boundary.' }
+      { sessionID: 'session-103', messageID: 'message-103' },
+      { message: 'Inspect no-policy startup.' }
     )
 
-    expect(createAdapter).toHaveBeenCalledWith({ dataRoot: '/tmp/repo-alpha' })
-    expect(startTask).toHaveBeenCalledWith({
-      packetId: 'message-001',
-      repoId: 'repo-alpha',
-      taskId: 'message-001',
-      taskText: 'Please inspect the new OpenCode plugin integration boundary.',
-      taskType: 'analysis',
-      prompt: 'Please inspect the new OpenCode plugin integration boundary.',
-      memoryRecords: [],
-      artifactRecords: [],
-      referenceTime: '2026-04-22T15:00:00.000Z'
-    })
+    expect(startTask).toHaveBeenCalledWith(expect.not.objectContaining({
+      policyInput: expect.anything(),
+      policyIdentity: expect.anything()
+    }))
   })
 
   it('falls back to derived ids and text parts when message metadata is partial', async () => {

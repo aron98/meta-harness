@@ -4,9 +4,11 @@ import {
   createHostSession,
   inspectHostRetrieval,
   type AdapterObservabilityRecord,
+  type AdapterRuntimeRoots,
   type CompactHostSessionInput,
   type CreateHostArtifactInput,
   type CreateHostSessionInput,
+  getRuntimeWriteRoot,
   type InspectHostRetrievalInput,
   writeAdapterCompactionRecord,
   writeAdapterObservabilityRecord,
@@ -55,6 +57,7 @@ export type OpenCodeAdapter = {
 
 type OpenCodeAdapterDependencies = {
   dataRoot: string
+  runtimeRoots?: AdapterRuntimeRoots
   createSession?: (input: CreateHostSessionInput) => ReturnType<typeof createHostSession>
   createArtifact?: (input: CreateHostArtifactInput) => ReturnType<typeof createHostArtifact>
   inspectRetrievalResult?: (input: InspectHostRetrievalInput) => ReturnType<typeof inspectHostRetrieval>
@@ -76,6 +79,7 @@ export function createOpenCodeAdapter(dependencies: OpenCodeAdapterDependencies)
   const writeCompaction = dependencies.writeCompaction ?? writeAdapterCompactionRecord
   const writeObservability = dependencies.writeObservability ?? writeAdapterObservabilityRecord
   const writeArtifact = dependencies.writeArtifact ?? writeArtifactRecord
+  const dependencyRuntimeRoots = dependencies.runtimeRoots ?? { userDataRoot: dependencies.dataRoot }
 
   return {
     metadata: {
@@ -88,9 +92,12 @@ export function createOpenCodeAdapter(dependencies: OpenCodeAdapterDependencies)
       const parsed = parseOpenCodeTaskStartPayload(input)
       const mapped = mapOpenCodeTaskStartPayload(parsed)
       const result = createSession(input)
-      const filePath = await writeTaskStart({ dataRoot: dependencies.dataRoot, context: result.context })
+      const runtimeRoots = result.adapterMetadata?.runtimeRoots ?? dependencyRuntimeRoots
+      const runtimeWriteRoot = getRuntimeWriteRoot(runtimeRoots)
+      const policyIdentity = result.adapterMetadata?.policyIdentity ?? input.policyIdentity
+      const filePath = await writeTaskStart({ dataRoot: runtimeWriteRoot, runtimeRoots, context: result.context })
       const observabilityFilePath = await writeObservability(
-        dependencies.dataRoot,
+        runtimeWriteRoot,
         buildOpenCodeObservabilityRecord({
           hookName: 'task:start',
           operation: 'task-start',
@@ -100,6 +107,7 @@ export function createOpenCodeAdapter(dependencies: OpenCodeAdapterDependencies)
           selectedMemoryIds: result.context.packet.selectedMemoryIds,
           selectedArtifactIds: result.context.packet.selectedArtifactIds,
           policyInputSupplied: mapped.policyInput !== undefined,
+          policyIdentity,
           status: 'success',
           createdAt: result.context.createdAt
         })
@@ -111,10 +119,11 @@ export function createOpenCodeAdapter(dependencies: OpenCodeAdapterDependencies)
       const parsed = parseOpenCodeTaskEndPayload(input)
       const mapped = mapOpenCodeTaskEndPayload(parsed)
       const result = createArtifact(input)
-      const eventFilePath = await writeTaskEnd({ dataRoot: dependencies.dataRoot, event: input as TaskEndEvent })
-      const artifactFilePath = await writeArtifact(dependencies.dataRoot, result)
+      const runtimeWriteRoot = getRuntimeWriteRoot(dependencyRuntimeRoots)
+      const eventFilePath = await writeTaskEnd({ dataRoot: runtimeWriteRoot, runtimeRoots: dependencyRuntimeRoots, event: input as TaskEndEvent })
+      const artifactFilePath = await writeArtifact(runtimeWriteRoot, result)
       const observabilityFilePath = await writeObservability(
-        dependencies.dataRoot,
+        runtimeWriteRoot,
         buildOpenCodeObservabilityRecord({
           hookName: 'task:end',
           operation: 'task-end',
@@ -123,6 +132,7 @@ export function createOpenCodeAdapter(dependencies: OpenCodeAdapterDependencies)
           selectedMemoryIds: input.selectedMemoryIds,
           selectedArtifactIds: input.selectedArtifactIds,
           policyInputSupplied: mapped.policyInput !== undefined,
+          policyIdentity: input.policyIdentity,
           status: 'success',
           createdAt: input.endedAt
         })
@@ -134,14 +144,16 @@ export function createOpenCodeAdapter(dependencies: OpenCodeAdapterDependencies)
       const parsed = parseOpenCodeInspectRetrievalPayload(input)
       const mapped = mapOpenCodeInspectRetrievalPayload(parsed)
       const result = inspectRetrievalResult(input)
+      const runtimeWriteRoot = getRuntimeWriteRoot(dependencyRuntimeRoots)
       const observabilityFilePath = await writeObservability(
-        dependencies.dataRoot,
+        runtimeWriteRoot,
         buildOpenCodeObservabilityRecord({
           hookName: 'retrieval:inspect',
           operation: 'inspect-retrieval',
           repoId: mapped.repoId,
           taskId: mapped.taskId,
           policyInputSupplied: mapped.policyInput !== undefined,
+          policyIdentity: input.policyIdentity,
           status: 'success',
           createdAt: new Date().toISOString(),
           selectedMemoryIds: result.selectedMemories.map((entry) => entry.record.id),
@@ -155,9 +167,10 @@ export function createOpenCodeAdapter(dependencies: OpenCodeAdapterDependencies)
       const parsed = parseOpenCodeCompactionPayload(input)
       const mapped = mapOpenCodeCompactionPayload(parsed)
       const result = compactSessionResult(input)
-      const filePath = await writeCompaction({ dataRoot: dependencies.dataRoot, summary: result })
+      const runtimeWriteRoot = getRuntimeWriteRoot(dependencyRuntimeRoots)
+      const filePath = await writeCompaction({ dataRoot: runtimeWriteRoot, runtimeRoots: dependencyRuntimeRoots, summary: result })
       const observabilityFilePath = await writeObservability(
-        dependencies.dataRoot,
+        runtimeWriteRoot,
         buildOpenCodeObservabilityRecord({
           hookName: 'session:compact',
           operation: 'compact-session',
@@ -166,6 +179,7 @@ export function createOpenCodeAdapter(dependencies: OpenCodeAdapterDependencies)
           selectedMemoryIds: result.selectedMemoryIds,
           selectedArtifactIds: result.selectedArtifactIds,
           policyInputSupplied: mapped.policyInput !== undefined,
+          policyIdentity: input.policyIdentity,
           status: 'success',
           createdAt: result.compactedAt
         })

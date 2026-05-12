@@ -29,6 +29,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@meta-harness/core": "workspace:*"
+    "@meta-harness/core": "workspace:*",
+    "zod": "^3.24.4"
   }
 }

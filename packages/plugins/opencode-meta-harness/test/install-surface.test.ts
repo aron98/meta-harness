@@ -11,7 +11,7 @@ const packageDir = resolve(testDir, '..')
 const localPluginReExport = "export { default } from '/absolute/path/to/meta-harness/packages/plugins/opencode-meta-harness/dist/index.js'"
 const npmConfigSnippet = `{
   "$schema": "https://opencode.ai/config.json",
-  "plugin": [["@meta-harness/opencode-meta-harness", { "dataRoot": "/home/you/.local/share/opencode-meta-harness" }]]
+  "plugin": [["@meta-harness/opencode-meta-harness", { "userDataRoot": "/home/you/.local/share/opencode-meta-harness" }]]
 }`
 
 describe('OpenCode plugin install surface', () => {
@@ -66,7 +66,7 @@ describe('OpenCode plugin install surface', () => {
     expect(readme).not.toContain('--global')
     expect(readme).toContain('patch the global OpenCode config')
     expect(readme).toContain('`~/.local/share/opencode-meta-harness`')
-    expect(readme).toContain('resolves that folder to an absolute path before writing `dataRoot` into config')
+    expect(readme).toContain('resolves that folder to an absolute path before writing `userDataRoot` into config')
     expect(readme).toContain(npmConfigSnippet)
     expect(readme).toContain('## Troubleshooting')
     expect(readme).toContain('`event` hook')

@@ -50,6 +50,9 @@ importers:
       '@meta-harness/core':
         specifier: workspace:*
         version: link:../core
+      zod:
+        specifier: ^3.24.4
+        version: 3.25.76
 
   packages/plugins/opencode-meta-harness:
     dependencies:

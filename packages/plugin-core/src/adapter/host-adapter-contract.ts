@@ -1,4 +1,17 @@
 import type { AdapterPolicyInput } from './adapter-policy-input'
+import type { AdapterPolicySourceScope } from './adapter-observability'
+
+export type AdapterRuntimeRoots = {
+  userDataRoot: string
+  projectDataRoot?: string
+}
+
+export type AdapterPolicyIdentity = {
+  runId: string
+  candidateId: string
+  sourceScope: AdapterPolicySourceScope
+  artifactFile: string
+}
 
 export type HostAdapterMetadata = {
   name: string
