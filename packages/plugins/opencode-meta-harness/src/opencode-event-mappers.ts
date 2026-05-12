@@ -14,7 +14,10 @@ import type {
   OpenCodeTaskStartPayload
 } from './opencode-hook-payload'
 
-type OpenCodeRetrievalTaskContext = Pick<OpenCodeTaskStartPayload, 'repoId' | 'taskId' | 'taskText' | 'taskType' | 'policyInput'>
+type OpenCodeRetrievalTaskContext = Pick<OpenCodeTaskStartPayload, 'repoId' | 'taskId' | 'taskText' | 'taskType' | 'policyInput'> & {
+  maxMemories?: number
+  maxArtifacts?: number
+}
 
 export function mapOpenCodeTaskStartPayload(input: OpenCodeTaskStartPayload): HostTaskStartInput {
   return {
@@ -44,6 +47,8 @@ export function mapOpenCodeToolExecuteRetrievalSignal(
 ): HostRetrievalInspectionInput & InspectHostRetrievalInput {
   return {
     ...mapOpenCodeTaskStartPayload(task),
+    maxMemories: task.maxMemories,
+    maxArtifacts: task.maxArtifacts,
     rankedMemories: [],
     rankedArtifacts: []
   }

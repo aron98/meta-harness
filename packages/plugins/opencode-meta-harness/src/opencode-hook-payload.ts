@@ -1,10 +1,11 @@
-import type { AdapterPolicyInput } from '@meta-harness/plugin-core'
+import type { AdapterPolicyIdentity, AdapterPolicyInput } from '@meta-harness/plugin-core'
 
 type OpenCodeBasePayload = {
   repoId: string
   taskId: string
   taskText: string
   policyInput?: AdapterPolicyInput
+  policyIdentity?: AdapterPolicyIdentity
 }
 
 export type OpenCodeTaskStartPayload = OpenCodeBasePayload & {
@@ -49,7 +50,8 @@ export function parseOpenCodeTaskStartPayload(input: unknown): OpenCodeTaskStart
     taskId: asNonEmptyString(record.taskId, 'taskId'),
     taskText: asNonEmptyString(record.taskText, 'taskText'),
     taskType: asNonEmptyString(record.taskType, 'taskType'),
-    policyInput: record.policyInput as AdapterPolicyInput | undefined
+    policyInput: record.policyInput as AdapterPolicyInput | undefined,
+    policyIdentity: record.policyIdentity as AdapterPolicyIdentity | undefined
   }
 }
 
@@ -95,7 +97,8 @@ export function parseOpenCodeCompactionPayload(input: unknown): OpenCodeCompacti
     taskId: asNonEmptyString(record.taskId, 'taskId'),
     taskText: asNonEmptyString(record.taskText, 'taskText'),
     suggestedRoute: asNonEmptyString(record.suggestedRoute, 'suggestedRoute'),
-    policyInput: record.policyInput as AdapterPolicyInput | undefined
+    policyInput: record.policyInput as AdapterPolicyInput | undefined,
+    policyIdentity: record.policyIdentity as AdapterPolicyIdentity | undefined
   }
 }
 

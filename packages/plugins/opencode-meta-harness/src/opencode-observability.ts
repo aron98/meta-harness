@@ -1,4 +1,4 @@
-import type { AdapterObservabilityOperation, AdapterObservabilityRecord, AdapterObservabilityStatus } from '@meta-harness/plugin-core'
+import type { AdapterObservabilityOperation, AdapterObservabilityRecord, AdapterObservabilityStatus, AdapterPolicyIdentity } from '@meta-harness/plugin-core'
 
 export type BuildOpenCodeObservabilityInput = {
   hookName: string
@@ -9,6 +9,7 @@ export type BuildOpenCodeObservabilityInput = {
   selectedMemoryIds?: string[]
   selectedArtifactIds?: string[]
   policyInputSupplied: boolean
+  policyIdentity?: AdapterPolicyIdentity
   status: AdapterObservabilityStatus
   warningMessages?: string[]
   createdAt: string
@@ -25,6 +26,10 @@ export function buildOpenCodeObservabilityRecord(input: BuildOpenCodeObservabili
     selectedMemoryIds: input.selectedMemoryIds ?? [],
     selectedArtifactIds: input.selectedArtifactIds ?? [],
     policyInputSupplied: input.policyInputSupplied,
+    policyRunId: input.policyIdentity?.runId,
+    policyCandidateId: input.policyIdentity?.candidateId,
+    policySourceScope: input.policyIdentity?.sourceScope,
+    policyArtifactFile: input.policyIdentity?.artifactFile,
     status: input.status,
     warningMessages: input.warningMessages,
     createdAt: input.createdAt
