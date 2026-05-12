@@ -13,6 +13,7 @@ export const fixtureRouteSchema = z.enum([
 export const repoMaturitySchema = z.enum(['new', 'active', 'legacy']);
 
 const requiredTextSchema = z.string().trim().min(1);
+export const isoDatetimeSchema = z.string().datetime({ offset: true });
 
 export const fixtureAuthoringSchema = z.object({
   id: fixtureIdSchema,

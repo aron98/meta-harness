@@ -55,21 +55,21 @@ const mutationCatalog = [
     label: 'Increase repository match retrieval weight',
     section: 'retrieval',
     field: 'repoMatchWeight',
-    value: 4
+    value: 12
   },
   {
     id: 'retrieval-tag-overlap-weight-high',
     label: 'Increase tag overlap retrieval weight',
     section: 'retrieval',
     field: 'tagOverlapWeight',
-    value: 3
+    value: 5
   },
   {
     id: 'retrieval-recency-half-life-short',
     label: 'Prefer more recent evidence',
     section: 'retrieval',
     field: 'recentHalfLifeDays',
-    value: 7
+    value: 3
   },
   {
     id: 'retrieval-task-local-memory-high',

@@ -14,11 +14,7 @@ const tempDirectories: string[] = [];
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
 async function runPnpm(args: readonly string[]) {
-  const pnpmExecPath = process.env.npm_execpath;
-
-  if (!pnpmExecPath) {
-    throw new Error('npm_execpath is required to run pnpm smoke tests');
-  }
+  const pnpmExecPath = process.env.npm_execpath ?? 'pnpm';
 
   const executable = extname(pnpmExecPath) ? process.execPath : pnpmExecPath;
   const commandArgs = extname(pnpmExecPath) ? [pnpmExecPath, ...args] : [...args];
@@ -40,6 +36,7 @@ describe('renderHelp', () => {
     expect(renderHelp()).toContain('query-history');
     expect(renderHelp()).toContain('prepare-session');
     expect(renderHelp()).toContain('run-candidate-search');
+    expect(renderHelp()).toContain('export-candidate-policy');
   });
 });
 
@@ -302,13 +299,36 @@ describe('run', () => {
       exitCode: 0,
       output: 'candidate-smoke'
     });
-
-    const result = await run(['run-candidate-search', '--data-root', '/tmp/store', '--input', '{}'], { log }, {
+    const options = {
       error: vi.fn(),
       runCandidateSearch
-    });
+    };
+
+    const result = await run(['run-candidate-search', '--data-root', '/tmp/store', '--input', '{}'], { log }, options);
 
     expect(result).toEqual({ success: true, exitCode: 0, output: 'candidate-smoke' });
-    expect(runCandidateSearch).toHaveBeenCalledWith(['--data-root', '/tmp/store', '--input', '{}'], { log }, expect.any(Object));
+    expect(runCandidateSearch).toHaveBeenCalledWith(['--data-root', '/tmp/store', '--input', '{}'], { log }, options);
+  });
+
+  it('dispatches export-candidate-policy via injected command handler', async () => {
+    const log = vi.fn();
+    const exportCandidatePolicy = vi.fn().mockResolvedValue({
+      success: true,
+      exitCode: 0,
+      output: 'winner-policy'
+    });
+    const options = {
+      error: vi.fn(),
+      exportCandidatePolicy
+    };
+
+    const result = await run(['export-candidate-policy', '--data-root', '/tmp/store', '--run-id', 'run-001', '--output-file', '/tmp/policy.json'], { log }, options);
+
+    expect(result).toEqual({ success: true, exitCode: 0, output: 'winner-policy' });
+    expect(exportCandidatePolicy).toHaveBeenCalledWith(
+      ['--data-root', '/tmp/store', '--run-id', 'run-001', '--output-file', '/tmp/policy.json'],
+      { log },
+      options
+    );
   });
 });

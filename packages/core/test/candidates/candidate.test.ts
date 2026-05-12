@@ -34,6 +34,21 @@ describe('candidate schema', () => {
     expect(parseCandidate(baselineCandidate)).toEqual(baselineCandidate);
   });
 
+  it('parses candidate context policy with zero limits', () => {
+    const candidateWithContext: Candidate = {
+      ...baselineCandidate,
+      policy: {
+        ...baselineCandidate.policy,
+        context: {
+          maxMemories: 0,
+          maxArtifacts: 0
+        }
+      }
+    };
+
+    expect(parseCandidate(candidateWithContext)).toEqual(candidateWithContext);
+  });
+
   it('rejects unknown policy sections', () => {
     expect(() =>
       parseCandidate({

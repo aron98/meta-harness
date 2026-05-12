@@ -5,6 +5,7 @@ import { taskTypeSchema } from '../artifact-record';
 const nonEmptyStringSchema = z.string().trim().min(1);
 const isoDatetimeSchema = z.string().datetime({ offset: true });
 const retrievalWeightSchema = z.number().finite().min(0).max(20);
+const contextLimitSchema = z.number().int().min(0);
 
 export const candidateRetrievalPolicySchema = z
   .object({
@@ -47,11 +48,19 @@ export const candidateVerificationPolicySchema = z
   })
   .strict();
 
+export const candidateContextPolicySchema = z
+  .object({
+    maxMemories: contextLimitSchema,
+    maxArtifacts: contextLimitSchema
+  })
+  .strict();
+
 export const candidatePolicySchema = z
   .object({
     retrieval: candidateRetrievalPolicySchema,
     routing: candidateRoutingPolicySchema,
-    verification: candidateVerificationPolicySchema
+    verification: candidateVerificationPolicySchema,
+    context: candidateContextPolicySchema.optional()
   })
   .strict();
 
@@ -70,6 +79,7 @@ export type CandidateRetrievalPolicy = z.infer<typeof candidateRetrievalPolicySc
 export type CandidateBuildPromptMode = z.infer<typeof candidateBuildPromptModeSchema>;
 export type CandidateRoutingPolicy = z.infer<typeof candidateRoutingPolicySchema>;
 export type CandidateVerificationPolicy = z.infer<typeof candidateVerificationPolicySchema>;
+export type CandidateContextPolicy = z.infer<typeof candidateContextPolicySchema>;
 export type CandidatePolicy = z.infer<typeof candidatePolicySchema>;
 export type Candidate = z.infer<typeof candidateSchema>;
 

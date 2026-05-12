@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -17,8 +17,10 @@ import { renderHelp, run } from '../src/index';
 import { runCandidateSearchCommand } from '../src/run-candidate-search';
 
 const tempDirectories: string[] = [];
+const originalCwd = process.cwd();
 
 afterEach(async () => {
+  process.chdir(originalCwd);
   await Promise.all(tempDirectories.splice(0).map(async (directory) => rm(directory, { recursive: true, force: true })));
 });
 
@@ -231,6 +233,35 @@ describe('runCandidateSearchCommand', () => {
     expect(error).toHaveBeenCalledWith(result.error);
   });
 
+  it('rejects non-ISO referenceTime values even when Date.parse accepts them', async () => {
+    const error = vi.fn();
+
+    const result = await runCandidateSearchCommand(
+      [
+        '--data-root',
+        '/tmp/meta-harness',
+        '--input',
+        JSON.stringify({ runId: 'candidate-smoke', referenceTime: 'May 4 2026' })
+      ],
+      { log: vi.fn() },
+      {
+        error,
+        benchmarkFixtures: fixtures,
+        listMemoryRecords: vi.fn().mockResolvedValue(memories),
+        listArtifactRecords: vi.fn().mockResolvedValue(artifacts),
+        runSearch: vi.fn().mockResolvedValue(searchResult()),
+        validateHeldOut: vi.fn().mockResolvedValue(evaluationResult('held-out', 0.9))
+      }
+    );
+
+    expect(result.success).toBe(false);
+    if (result.success) {
+      throw new Error('expected non-ISO referenceTime to fail');
+    }
+    expect(result.error).toBe('error: run-candidate-search failed: referenceTime must be an ISO datetime string');
+    expect(error).toHaveBeenCalledWith(result.error);
+  });
+
   it('emits one JSON payload with search, held-out, warnings, and output paths', async () => {
     const log = vi.fn();
 
@@ -267,6 +298,222 @@ describe('runCandidateSearchCommand', () => {
     });
     expect(log).toHaveBeenCalledTimes(1);
     expect(log).toHaveBeenCalledWith(result.output);
+  });
+
+  it('loads fixtures, candidates, mutations, and objective config files relative to process cwd', async () => {
+    const dataRoot = await mkdtemp(join(tmpdir(), 'meta-harness-candidate-cli-'));
+    tempDirectories.push(dataRoot);
+    process.chdir(dataRoot);
+    const runSearch = vi.fn().mockResolvedValue(searchResult());
+    const validateHeldOut = vi.fn().mockResolvedValue(evaluationResult('held-out', 0.9));
+    const customFixtures: CandidateBenchmarkFixture[] = [
+      {
+        id: 'custom-train',
+        title: 'Custom train fixture',
+        prompt: 'Implement the custom behavior.',
+        route: 'implement',
+        split: 'train',
+        repo: { id: 'repo-custom', maturity: 'active' },
+        routeHints: ['implement'],
+        checklistHints: ['Run focused tests'],
+        tags: ['custom']
+      },
+      {
+        id: 'custom-held-out',
+        title: 'Custom held-out fixture',
+        prompt: 'Plan the custom behavior.',
+        route: 'plan',
+        split: 'held-out',
+        repo: { id: 'repo-custom', maturity: 'legacy' },
+        routeHints: ['plan'],
+        checklistHints: ['List dependencies'],
+        tags: ['custom']
+      }
+    ];
+    const customMutations = [
+      {
+        id: 'prefer-codegen',
+        label: 'Prefer codegen',
+        section: 'routing',
+        field: 'buildPromptMode',
+        value: 'prefer-codegen'
+      }
+    ];
+    const objectiveConfig = { selectedCommandPenalty: 0.5 };
+
+    await writeFile(join(dataRoot, 'fixtures.json'), JSON.stringify(customFixtures), 'utf8');
+    await writeFile(join(dataRoot, 'candidates.json'), JSON.stringify([candidate]), 'utf8');
+    await writeFile(join(dataRoot, 'mutations.json'), JSON.stringify(customMutations), 'utf8');
+    await writeFile(join(dataRoot, 'objective.json'), JSON.stringify(objectiveConfig), 'utf8');
+
+    const result = await runCandidateSearchCommand(
+      [
+        '--data-root',
+        '/tmp/meta-harness',
+        '--input',
+        JSON.stringify({
+          runId: 'candidate-smoke',
+          referenceTime: '2026-04-26T12:00:00.000Z',
+          fixturesFile: 'fixtures.json',
+          candidatesFile: 'candidates.json',
+          mutationsFile: 'mutations.json',
+          objectiveFile: 'objective.json'
+        })
+      ],
+      { log: vi.fn() },
+      {
+        error: vi.fn(),
+        benchmarkFixtures: fixtures,
+        listMemoryRecords: vi.fn().mockResolvedValue(memories),
+        listArtifactRecords: vi.fn().mockResolvedValue(artifacts),
+        runSearch,
+        validateHeldOut
+      }
+    );
+
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      throw new Error(`expected success, received ${result.error}`);
+    }
+    expect(runSearch).toHaveBeenCalledWith(expect.objectContaining({
+      fixtures: customFixtures,
+      candidates: [candidate],
+      searchConfig: { mutations: customMutations },
+      objectiveConfig: expect.objectContaining(objectiveConfig)
+    }));
+    expect(validateHeldOut).toHaveBeenCalledWith(expect.objectContaining({
+      fixtures: customFixtures,
+      objectiveConfig: expect.objectContaining(objectiveConfig)
+    }));
+  });
+
+  it('loads full search config files relative to process cwd and forwards generated-combination settings', async () => {
+    const dataRoot = await mkdtemp(join(tmpdir(), 'meta-harness-candidate-cli-'));
+    tempDirectories.push(dataRoot);
+    process.chdir(dataRoot);
+    const runSearch = vi.fn().mockResolvedValue(searchResult());
+    const validateHeldOut = vi.fn().mockResolvedValue(evaluationResult('held-out', 0.9));
+    const customSearchConfig = {
+      mutations: [
+        {
+          id: 'prefer-codegen',
+          label: 'Prefer codegen',
+          section: 'routing',
+          field: 'buildPromptMode',
+          value: 'prefer-codegen'
+        }
+      ],
+      maxCombinationSize: 2,
+      maxCandidates: 4,
+      includeDefaultMutations: false
+    };
+
+    await writeFile(join(dataRoot, 'search-config.json'), JSON.stringify(customSearchConfig), 'utf8');
+
+    const result = await runCandidateSearchCommand(
+      [
+        '--data-root',
+        '/tmp/meta-harness',
+        '--input',
+        JSON.stringify({
+          runId: 'candidate-smoke',
+          referenceTime: '2026-04-26T12:00:00.000Z',
+          searchConfigFile: 'search-config.json'
+        })
+      ],
+      { log: vi.fn() },
+      {
+        error: vi.fn(),
+        benchmarkFixtures: fixtures,
+        listMemoryRecords: vi.fn().mockResolvedValue(memories),
+        listArtifactRecords: vi.fn().mockResolvedValue(artifacts),
+        runSearch,
+        validateHeldOut
+      }
+    );
+
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      throw new Error(`expected success, received ${result.error}`);
+    }
+    expect(runSearch).toHaveBeenCalledWith(expect.objectContaining({
+      searchConfig: customSearchConfig
+    }));
+  });
+
+  it('rejects inputs that provide both mutationsFile and searchConfigFile', async () => {
+    const dataRoot = await mkdtemp(join(tmpdir(), 'meta-harness-candidate-cli-'));
+    tempDirectories.push(dataRoot);
+    process.chdir(dataRoot);
+    const error = vi.fn();
+
+    await writeFile(join(dataRoot, 'mutations.json'), JSON.stringify([]), 'utf8');
+    await writeFile(join(dataRoot, 'search-config.json'), JSON.stringify({ mutations: [] }), 'utf8');
+
+    const result = await runCandidateSearchCommand(
+      [
+        '--data-root',
+        '/tmp/meta-harness',
+        '--input',
+        JSON.stringify({
+          runId: 'candidate-smoke',
+          referenceTime: '2026-04-26T12:00:00.000Z',
+          mutationsFile: 'mutations.json',
+          searchConfigFile: 'search-config.json'
+        })
+      ],
+      { log: vi.fn() },
+      {
+        error,
+        benchmarkFixtures: fixtures,
+        listMemoryRecords: vi.fn().mockResolvedValue(memories),
+        listArtifactRecords: vi.fn().mockResolvedValue(artifacts),
+        runSearch: vi.fn().mockResolvedValue(searchResult()),
+        validateHeldOut: vi.fn().mockResolvedValue(evaluationResult('held-out', 0.9))
+      }
+    );
+
+    expect(result.success).toBe(false);
+    if (result.success) {
+      throw new Error('expected ambiguous search config input to fail');
+    }
+    expect(result.error).toBe('error: run-candidate-search failed: provide either mutationsFile or searchConfigFile, not both');
+    expect(error).toHaveBeenCalledWith(result.error);
+  });
+
+  it('allows zero memory and artifact limits in command input', async () => {
+    const runSearch = vi.fn().mockResolvedValue(searchResult());
+    const validateHeldOut = vi.fn().mockResolvedValue(evaluationResult('held-out', 0.9));
+
+    const result = await runCandidateSearchCommand(
+      [
+        '--data-root',
+        '/tmp/meta-harness',
+        '--input',
+        JSON.stringify({
+          runId: 'candidate-smoke',
+          referenceTime: '2026-04-26T12:00:00.000Z',
+          maxMemories: 0,
+          maxArtifacts: 0
+        })
+      ],
+      { log: vi.fn() },
+      {
+        error: vi.fn(),
+        benchmarkFixtures: fixtures,
+        listMemoryRecords: vi.fn().mockResolvedValue(memories),
+        listArtifactRecords: vi.fn().mockResolvedValue(artifacts),
+        runSearch,
+        validateHeldOut
+      }
+    );
+
+    expect(result.success).toBe(true);
+    if (!result.success) {
+      throw new Error(`expected success, received ${result.error}`);
+    }
+    expect(runSearch).toHaveBeenCalledWith(expect.objectContaining({ maxMemories: 0, maxArtifacts: 0 }));
+    expect(validateHeldOut).toHaveBeenCalledWith(expect.objectContaining({ maxMemories: 0, maxArtifacts: 0 }));
   });
 
   it('uses the real core loop to write search and held-out artifacts', async () => {

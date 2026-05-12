@@ -6,6 +6,7 @@ type Output = Pick<typeof console, 'log'>;
 type BuildFixtureArtifacts = typeof import('./build-fixture-artifacts').buildFixtureArtifacts;
 type CompactSession = typeof import('./compact-session').runCompactSessionCommand;
 type EvaluatePacket = typeof import('./evaluate-packet').runEvaluatePacketCommand;
+type ExportCandidatePolicy = typeof import('./export-candidate-policy').runExportCandidatePolicyCommand;
 type InspectRetrieval = typeof import('./inspect-retrieval').runInspectRetrievalCommand;
 type LogArtifact = typeof import('./log-artifact').runLogArtifactCommand;
 type PromoteMemory = typeof import('./promote-memory').runPromoteMemoryCommand;
@@ -37,6 +38,7 @@ export function renderHelp() {
     '  prepare-session         Build a session packet from stored history',
     '  evaluate-packet         Compare packet retrieval-on versus retrieval-off',
     '  run-candidate-search    Evaluate bounded candidate policies locally',
+    '  export-candidate-policy Export selected candidate policy to a runtime artifact',
     '',
     'Available workspace commands:',
     '  pnpm test',
@@ -53,6 +55,7 @@ export async function run(
       buildFixtureArtifacts?: BuildFixtureArtifacts;
       compactSession?: CompactSession;
       evaluatePacket?: EvaluatePacket;
+      exportCandidatePolicy?: ExportCandidatePolicy;
       inspectRetrieval?: InspectRetrieval;
       logArtifact?: LogArtifact;
       promoteMemory?: PromoteMemory;
@@ -138,7 +141,12 @@ export async function run(
 
   if (args[0] === 'run-candidate-search') {
     const runCandidateSearch = options.runCandidateSearch ?? (await import('./run-candidate-search')).runCandidateSearchCommand;
-    return runCandidateSearch(args.slice(1), stdout, { error: options.error });
+    return runCandidateSearch(args.slice(1), stdout, options);
+  }
+
+  if (args[0] === 'export-candidate-policy') {
+    const exportCandidatePolicy = options.exportCandidatePolicy ?? (await import('./export-candidate-policy')).runExportCandidatePolicyCommand;
+    return exportCandidatePolicy(args.slice(1), stdout, options);
   }
 
   const error = formatCommandError('cli', `unknown command ${args[0]}`);

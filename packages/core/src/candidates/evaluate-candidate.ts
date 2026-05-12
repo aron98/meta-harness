@@ -1,19 +1,47 @@
+import { z } from 'zod';
+
 import type { ArtifactRecord } from '../artifact-record';
 import {
   evaluatePacketBenchmarks,
   type EvaluatePacketBenchmark,
   type EvaluatePacketMetrics
 } from '../evaluate-packet';
+import { fixtureRouteSchema, repoMaturitySchema } from '../fixture-authoring-schema';
 import type { MemoryRecord } from '../memory-record';
-import type { SessionPacket } from '../session-packet';
+import type { SessionPacket, SessionPacketRoute } from '../session-packet';
 import { createPrepareSessionPacketPolicyInput } from './candidate-policy';
-import { parseCandidate, type Candidate } from './candidate';
+import { parseCandidate, type Candidate, type CandidatePolicy } from './candidate';
 import type { CandidateEvaluationPartition } from './candidate-paths';
-import { scoreCandidateSummary } from './search-objective';
+import { scoreCandidateObjective, type CandidateObjectiveConfigInput, type CandidateScoreContributions } from './objective-config';
 
 export type CandidateBenchmarkFixture = EvaluatePacketBenchmark & {
   split: 'train' | 'held-out';
 };
+
+const nonEmptyStringSchema = z.string().trim().min(1);
+
+export const candidateBenchmarkFixtureSchema = z
+  .object({
+    id: nonEmptyStringSchema,
+    title: nonEmptyStringSchema,
+    prompt: nonEmptyStringSchema,
+    route: fixtureRouteSchema,
+    split: z.enum(['train', 'held-out']),
+    repo: z
+      .object({
+        id: nonEmptyStringSchema,
+        maturity: repoMaturitySchema
+      })
+      .strict(),
+    routeHints: z.array(fixtureRouteSchema),
+    checklistHints: z.array(nonEmptyStringSchema),
+    tags: z.array(nonEmptyStringSchema)
+  })
+  .strict();
+
+export function parseCandidateBenchmarkFixtures(input: unknown): CandidateBenchmarkFixture[] {
+  return z.array(candidateBenchmarkFixtureSchema).parse(input);
+}
 
 export type CandidateFixtureEvaluationTrace = {
   candidateId: string;
@@ -21,6 +49,18 @@ export type CandidateFixtureEvaluationTrace = {
   split: CandidateEvaluationPartition;
   packet: SessionPacket;
   metrics: EvaluatePacketMetrics;
+  scoreContributions: CandidateScoreContributions;
+  selectedMemoryIds: string[];
+  selectedArtifactIds: string[];
+  selectedRecordIds: string[];
+  selectedCommandCount: number;
+  routeDecision: {
+    expected: SessionPacketRoute;
+    actual: SessionPacketRoute;
+    hit: boolean;
+  };
+  expectedTagHitRate: number;
+  effectivePolicy: CandidatePolicy;
 };
 
 export type CandidateEvaluationSummary = {
@@ -29,6 +69,7 @@ export type CandidateEvaluationSummary = {
   fixtureCount: number;
   metrics: EvaluatePacketMetrics;
   score: number;
+  scoreContributions?: CandidateScoreContributions;
 };
 
 export type CandidateEvaluationResult = {
@@ -48,7 +89,18 @@ export type EvaluateCandidateInput = {
   referenceTime: string;
   maxMemories?: number;
   maxArtifacts?: number;
+  objectiveConfig?: CandidateObjectiveConfigInput;
 };
+
+function getEffectivePolicy(candidate: Candidate, input: EvaluateCandidateInput): CandidatePolicy {
+  return {
+    ...candidate.policy,
+    context: {
+      maxMemories: candidate.policy.context?.maxMemories ?? input.maxMemories ?? 3,
+      maxArtifacts: candidate.policy.context?.maxArtifacts ?? input.maxArtifacts ?? 2
+    }
+  };
+}
 
 const emptyMetrics: EvaluatePacketMetrics = {
   packetCompleteness: 0,
@@ -92,41 +144,62 @@ function averageMetrics(metrics: readonly EvaluatePacketMetrics[]): EvaluatePack
 
 export function evaluateCandidate(input: EvaluateCandidateInput): CandidateEvaluationResult {
   const candidate = parseCandidate(input.candidate);
+  const effectivePolicy = getEffectivePolicy(candidate, input);
   const evaluation = evaluatePacketBenchmarks({
     benchmarks: input.fixtures,
     memoryRecords: input.memoryRecords,
     artifactRecords: input.artifactRecords,
     referenceTime: input.referenceTime,
-    maxMemories: input.maxMemories,
-    maxArtifacts: input.maxArtifacts,
+    maxMemories: candidate.policy.context?.maxMemories ?? input.maxMemories,
+    maxArtifacts: candidate.policy.context?.maxArtifacts ?? input.maxArtifacts,
     policyInput: createPrepareSessionPacketPolicyInput(candidate)
   });
-  const fixtures = evaluation.benchmarks.map((entry) => ({
-    candidateId: candidate.id,
-    fixtureId: entry.benchmark.id,
-    split: input.split,
-    packet: {
+  const fixtures = evaluation.benchmarks.map((entry) => {
+    const packet = {
       ...entry.withRetrieval.packet,
       id: `${candidate.id}-${entry.benchmark.id}-${input.split}`
-    },
-    metrics: entry.withRetrieval.metrics
-  }));
-  const summary: CandidateEvaluationSummary = {
+    };
+    const score = scoreCandidateObjective({ metrics: entry.withRetrieval.metrics }, input.objectiveConfig);
+
+    return {
+      candidateId: candidate.id,
+      fixtureId: entry.benchmark.id,
+      split: input.split,
+      packet,
+      metrics: entry.withRetrieval.metrics,
+      scoreContributions: score.contributions,
+      selectedMemoryIds: packet.selectedMemoryIds,
+      selectedArtifactIds: packet.selectedArtifactIds,
+      selectedRecordIds: [...packet.selectedMemoryIds, ...packet.selectedArtifactIds],
+      selectedCommandCount: entry.withRetrieval.metrics.selectedCommandCount,
+      routeDecision: {
+        expected: entry.benchmark.route,
+        actual: packet.suggestedRoute,
+        hit: entry.benchmark.route === packet.suggestedRoute
+      },
+      expectedTagHitRate: entry.withRetrieval.metrics.expectedTagHitRate,
+      effectivePolicy
+    };
+  });
+  const summaryWithoutScore = {
     candidateId: candidate.id,
     split: input.split,
     fixtureCount: fixtures.length,
     metrics: averageMetrics(fixtures.map((fixture) => fixture.metrics)),
     score: 0
   };
+  const objective = scoreCandidateObjective(summaryWithoutScore, input.objectiveConfig);
+  const summary: CandidateEvaluationSummary = {
+    ...summaryWithoutScore,
+    score: objective.score,
+    scoreContributions: objective.contributions
+  };
 
   return {
     candidateId: candidate.id,
     candidate,
     split: input.split,
-    summary: {
-      ...summary,
-      score: scoreCandidateSummary(summary)
-    },
+    summary,
     fixtures
   };
 }
